@@ -8,12 +8,12 @@
 $dbUrl = getenv('DATABASE_URL') ?: getenv('MYSQL_URL');
 $parsedUrl = $dbUrl ? parse_url($dbUrl) : [];
 
-// Konfigurasi MySQL (Prioritas: DATABASE_URL -> Variabel DB_* -> Default XAMPP Localhost)
-define('DB_HOST', $parsedUrl['host'] ?? (getenv('DB_HOST') ?: 'localhost'));
-define('DB_PORT', (string)($parsedUrl['port'] ?? (getenv('DB_PORT') ?: '3306')));
-define('DB_USER', $parsedUrl['user'] ?? (getenv('DB_USER') ?: 'root'));
-define('DB_PASS', isset($parsedUrl['pass']) ? $parsedUrl['pass'] : (getenv('DB_PASS') !== false ? (string)getenv('DB_PASS') : ''));
-define('DB_NAME', isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : (getenv('DB_NAME') ?: 'sidinar_db'));
+// Konfigurasi MySQL (Prioritas: DATABASE_URL -> Variabel DB_* -> Default TiDB Cloud Serverless)
+define('DB_HOST', $parsedUrl['host'] ?? (getenv('DB_HOST') ?: 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com'));
+define('DB_PORT', (string)($parsedUrl['port'] ?? (getenv('DB_PORT') ?: '4000')));
+define('DB_USER', $parsedUrl['user'] ?? (getenv('DB_USER') ?: '4Sv9mvyvExsfxAK.root'));
+define('DB_PASS', isset($parsedUrl['pass']) ? $parsedUrl['pass'] : (getenv('DB_PASS') !== false && getenv('DB_PASS') !== '' ? (string)getenv('DB_PASS') : '8JaIzgstp8JbvfKm'));
+define('DB_NAME', isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : (getenv('DB_NAME') ?: 'test'));
 
 // File SQLite lokal (fallback darurat jika belum terhubung ke cloud/MySQL)
 $sqlitePath = getenv('VERCEL') ? '/tmp/sidinar.sqlite' : (__DIR__ . '/../database/sidinar.sqlite');
@@ -36,21 +36,19 @@ function get_db(): PDO {
     // Aktifkan SSL jika host adalah Cloud Remote (TiDB, Aiven, Railway, dll.)
     if ($isRemote) {
         $caPaths = [
+            __DIR__ . '/cacert.pem',
+            ini_get('openssl.cafile'),
+            ini_get('curl.cainfo'),
             '/etc/ssl/certs/ca-certificates.crt',
             '/etc/pki/tls/certs/ca-bundle.crt',
             'D:/xampp/apache/bin/curl-ca-bundle.crt',
             'C:/xampp/apache/bin/curl-ca-bundle.crt'
         ];
-        $foundCa = false;
         foreach ($caPaths as $path) {
-            if (file_exists($path)) {
+            if (!empty($path) && file_exists($path)) {
                 $options[PDO::MYSQL_ATTR_SSL_CA] = $path;
-                $foundCa = true;
                 break;
             }
-        }
-        if (!$foundCa) {
-            $options[PDO::MYSQL_ATTR_SSL_CA] = true;
         }
         if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
             $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
@@ -154,7 +152,7 @@ function init_sqlite_tables(PDO $pdo): void {
             tahun INTEGER NOT NULL DEFAULT 2026,
             tahun_liturgi TEXT DEFAULT 'Tahun B / Liturgi Biasa',
             warna_liturgi TEXT NOT NULL DEFAULT 'Hijau',
-            nama_selebran TEXT DEFAULT 'Romo Paroki',
+            nama_selebran TEXT DEFAULT '',
             qr_token TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -198,10 +196,10 @@ function init_sqlite_tables(PDO $pdo): void {
 
     // Seed Jadwal Misa
     $stmt2 = $pdo->prepare("INSERT OR IGNORE INTO mass_schedules (id, judul_misa, kategori, tanggal_misa, jam_mulai, kuota_maksimal, minggu_ke, tahun, tahun_liturgi, warna_liturgi, nama_selebran, qr_token) VALUES 
-        (1, 'Misa Harian Pagi', 'harian', ?, '05:30:00', 6, ?, 2026, 'Tahun B / Liturgi Biasa', 'Hijau', 'Romo Robertus Budi Prastowo, Pr', ?),
-        (2, 'Misa Mingguan Sabtu Sore', 'mingguan', ?, '17:00:00', 12, ?, 2026, 'Tahun B / Liturgi Biasa', 'Hijau', 'Romo Paroki Purbowardayan', ?),
-        (3, 'Misa Mingguan Minggu Pagi I', 'mingguan', ?, '06:30:00', 12, ?, 2026, 'Tahun B / Liturgi Biasa', 'Putih', 'Romo Vikaris Paroki', ?),
-        (4, 'Misa Mingguan Minggu Pagi II', 'mingguan', ?, '08:30:00', 12, ?, 2026, 'Tahun B / Liturgi Biasa', 'Hijau', 'Romo Robertus Budi Prastowo, Pr', ?)");
+        (1, 'Misa Harian Pagi', 'harian', ?, '05:30:00', 6, ?, 2026, 'Tahun B / Liturgi Biasa', 'Hijau', '', ?),
+        (2, 'Misa Mingguan Sabtu Sore', 'mingguan', ?, '17:00:00', 12, ?, 2026, 'Tahun B / Liturgi Biasa', 'Hijau', '', ?),
+        (3, 'Misa Mingguan Minggu Pagi I', 'mingguan', ?, '06:30:00', 12, ?, 2026, 'Tahun B / Liturgi Biasa', 'Putih', '', ?),
+        (4, 'Misa Mingguan Minggu Pagi II', 'mingguan', ?, '08:30:00', 12, ?, 2026, 'Tahun B / Liturgi Biasa', 'Hijau', '', ?)");
     
     $week = (int)date('W');
     $sabtu = date('Y-m-d', strtotime('next Saturday'));

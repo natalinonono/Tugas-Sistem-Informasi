@@ -24,7 +24,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $jam = $_POST['jam_mulai'] ?? '';
         $kuota = (int)($_POST['kuota_maksimal'] ?? 12);
         $warna = $_POST['warna_liturgi'] ?? 'Hijau';
-        $selebran = trim($_POST['nama_selebran'] ?? 'Romo Paroki');
+        $selebran = trim($_POST['nama_selebran'] ?? '');
         $tahun_liturgi = trim($_POST['tahun_liturgi'] ?? 'Tahun B / Liturgi Biasa');
 
         if ($judul && $tanggal && $jam) {
@@ -123,8 +123,7 @@ if ($kategori_filter === 'harian') {
 }
 
 if ($search_query !== '') {
-    $sql .= " AND (s.judul_misa LIKE ? OR s.nama_selebran LIKE ?)";
-    $params[] = "%{$search_query}%";
+    $sql .= " AND s.judul_misa LIKE ?";
     $params[] = "%{$search_query}%";
 }
 
@@ -495,7 +494,7 @@ require_once __DIR__ . '/../includes/header.php';
 function remindAllMembers(scheduleId) {
   if (!confirm('Kirim notifikasi pengingat ke seluruh misdinar yang terdaftar pada misa ini?')) return;
 
-  fetch('../api/reminder.php', {
+  fetch(getApiUrl('reminder.php'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'schedule_id=' + encodeURIComponent(scheduleId)
@@ -516,7 +515,7 @@ function remindAllMembers(scheduleId) {
 
 // 2. AJAX Broadcast Single Booking
 function remindSingleBooking(bookingId) {
-  fetch('../api/reminder.php', {
+  fetch(getApiUrl('reminder.php'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'booking_id=' + encodeURIComponent(bookingId)
@@ -540,7 +539,7 @@ function triggerAutoGenerate() {
   const btn = document.getElementById('btn-generate-schedules');
   if (btn) btn.disabled = true;
 
-  fetch('../api/generate_schedules.php', { method: 'POST' })
+  fetch(getApiUrl('generate_schedules.php'), { method: 'POST' })
     .then(res => res.json())
     .then(data => {
       if (data.success) {

@@ -110,6 +110,12 @@ function updateThemeIcon(theme) {
   }
 }
 
+// Helper URL API Dinamis
+function getApiUrl(endpoint) {
+  const base = typeof window.SIDINAR_BASE_URL === 'string' ? window.SIDINAR_BASE_URL.replace(/\/$/, '') : '';
+  return base + '/api/' + endpoint.replace(/^\//, '');
+}
+
 // 4. Modal Helpers
 function openModal(id) {
   const modal = document.getElementById(id);
@@ -125,7 +131,7 @@ function closeModal(id) {
 let lastRemindedBookingId = null;
 
 function checkNotifications() {
-  const apiPath = window.SIDINAR_BASE_URL ? window.SIDINAR_BASE_URL + '/api/notifications.php' : '../api/notifications.php';
+  const apiPath = getApiUrl('notifications.php');
   fetch(apiPath)
     .then(res => res.json())
     .then(data => {
@@ -139,6 +145,44 @@ function checkNotifications() {
           } else {
             badge.style.display = 'none';
           }
+        }
+
+        // Render isi daftar notifikasi ke dalam modal
+        const modalList = document.getElementById('notification-modal-list');
+        if (modalList) {
+          let html = '';
+          if (data.reminders && data.reminders.length > 0) {
+            html += '<div style="margin-bottom:1rem;"><div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.5rem;">Pengingat Tugas Liturgi</div>';
+            data.reminders.forEach(r => {
+              html += `
+                <div style="background:var(--surface-low); border-left:3px solid var(--primary); padding:0.75rem; border-radius:var(--radius-sm); margin-bottom:0.5rem;">
+                  <div style="font-weight:700; font-size:0.85rem; color:var(--text-main);">${r.title}</div>
+                  <div style="font-size:0.78rem; color:var(--text-muted); margin:0.25rem 0;">${r.message}</div>
+                  ${r.url ? `<a href="${r.url}" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:2px 8px; margin-top:0.25rem;">Buka Detail</a>` : ''}
+                </div>
+              `;
+            });
+            html += '</div>';
+          }
+          if (data.announcements && data.announcements.length > 0) {
+            html += '<div><div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.5rem;">Warta Sakristi Terkini</div>';
+            data.announcements.forEach(a => {
+              html += `
+                <div style="background:var(--surface-low); border-left:3px solid var(--secondary); padding:0.75rem; border-radius:var(--radius-sm); margin-bottom:0.5rem;">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-weight:700; font-size:0.85rem; color:var(--text-main);">${a.is_pinned ? '📌 ' : ''}${a.judul}</div>
+                    <span style="font-size:0.7rem; color:var(--text-dim);">${a.created_at ? a.created_at.substring(0, 10) : ''}</span>
+                  </div>
+                  <div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.25rem; white-space:pre-line;">${a.isi}</div>
+                </div>
+              `;
+            });
+            html += '</div>';
+          }
+          if (!html) {
+            html = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:1.5rem 0;">Belum ada pengingat atau warta baru saat ini.</p>';
+          }
+          modalList.innerHTML = html;
         }
 
         // Trigger banner jika ada pengingat baru yang belum dilihat sesi ini

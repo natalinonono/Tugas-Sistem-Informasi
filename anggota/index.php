@@ -448,7 +448,7 @@ function submitCheckin() {
   formData.append('booking_id', bookingId);
   formData.append('qr_token', token);
 
-  fetch('../api/checkin.php', {
+  fetch(getApiUrl('checkin.php'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: formData.toString()

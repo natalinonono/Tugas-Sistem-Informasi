@@ -50,7 +50,7 @@ try {
                     $year,
                     'Tahun B / Liturgi Biasa',
                     'Hijau',
-                    'Romo Robertus Budi Prastowo, Pr',
+                    '',
                     $token
                 ]);
                 $insertedCount++;
@@ -73,7 +73,7 @@ try {
                     $year,
                     'Tahun B / Liturgi Biasa',
                     'Hijau',
-                    'Romo Paroki Purbowardayan',
+                    '',
                     $token
                 ]);
                 $insertedCount++;
@@ -102,7 +102,7 @@ try {
                         $year,
                         'Tahun B / Liturgi Biasa',
                         $slot['warna'],
-                        'Romo Paroki Purbowardayan',
+                        '',
                         $token
                     ]);
                     $insertedCount++;

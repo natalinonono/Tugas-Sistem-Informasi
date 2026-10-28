@@ -36,7 +36,7 @@ if ($realFile && str_starts_with($realFile, $rootDir) && file_exists($realFile))
 
     // Set server script vars
     $_SERVER['SCRIPT_FILENAME'] = $realFile;
-    $_SERVER['SCRIPT_NAME'] = str_replace('\\', '/', str_replace($rootDir, '', $realFile));
+    $_SERVER['SCRIPT_NAME'] = '/' . ltrim(str_replace('\\', '/', str_replace($rootDir, '', $realFile)), '/');
     chdir(dirname($realFile));
     require $realFile;
     exit;

@@ -211,7 +211,7 @@ require_once __DIR__ . '/../includes/header.php';
 function triggerAutoGenerate() {
   if (!confirm('Hasilkan jadwal Misa Harian & Mingguan otomatis untuk 30 hari ke depan?')) return;
 
-  fetch('../api/generate_schedules.php', {
+  fetch(getApiUrl('generate_schedules.php'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: 'days=30'

@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS `mass_schedules` (
   `tahun` INT NOT NULL DEFAULT 2026,
   `tahun_liturgi` VARCHAR(100) DEFAULT 'Tahun B / Liturgi Biasa',
   `warna_liturgi` ENUM('Hijau', 'Putih', 'Merah', 'Ungu', 'Merah Muda') NOT NULL DEFAULT 'Hijau',
-  `nama_selebran` VARCHAR(255) DEFAULT 'Romo Paroki',
+  `nama_selebran` VARCHAR(255) DEFAULT '',
   `qr_token` VARCHAR(100) NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -91,10 +91,10 @@ INSERT INTO `profiles` (`id`, `email`, `password`, `nama_lengkap`, `nama_panggil
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 INSERT INTO `mass_schedules` (`id`, `judul_misa`, `kategori`, `tanggal_misa`, `jam_mulai`, `kuota_maksimal`, `minggu_ke`, `tahun`, `tahun_liturgi`, `warna_liturgi`, `nama_selebran`, `qr_token`) VALUES
-(1, 'Misa Harian Pagi', 'harian', CURDATE(), '05:30:00', 6, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Hijau', 'Romo Robertus Budi Prastowo, Pr', MD5(CONCAT('misa-1-', CURDATE()))),
-(2, 'Misa Mingguan Sabtu Sore', 'mingguan', DATE_ADD(CURDATE(), INTERVAL (6 - WEEKDAY(CURDATE())) DAY), '17:00:00', 12, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Hijau', 'Romo Paroki Purbowardayan', MD5(CONCAT('misa-2-', CURDATE()))),
-(3, 'Misa Mingguan Minggu Pagi I', 'mingguan', DATE_ADD(CURDATE(), INTERVAL (7 - WEEKDAY(CURDATE())) DAY), '06:30:00', 12, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Putih', 'Romo Vikaris Paroki', MD5(CONCAT('misa-3-', CURDATE()))),
-(4, 'Misa Mingguan Minggu Pagi II', 'mingguan', DATE_ADD(CURDATE(), INTERVAL (7 - WEEKDAY(CURDATE())) DAY), '08:30:00', 12, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Hijau', 'Romo Robertus Budi Prastowo, Pr', MD5(CONCAT('misa-4-', CURDATE())))
+(1, 'Misa Harian Pagi', 'harian', CURDATE(), '05:30:00', 6, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Hijau', '', MD5(CONCAT('misa-1-', CURDATE()))),
+(2, 'Misa Mingguan Sabtu Sore', 'mingguan', DATE_ADD(CURDATE(), INTERVAL (6 - WEEKDAY(CURDATE())) DAY), '17:00:00', 12, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Hijau', '', MD5(CONCAT('misa-2-', CURDATE()))),
+(3, 'Misa Mingguan Minggu Pagi I', 'mingguan', DATE_ADD(CURDATE(), INTERVAL (7 - WEEKDAY(CURDATE())) DAY), '06:30:00', 12, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Putih', '', MD5(CONCAT('misa-3-', CURDATE()))),
+(4, 'Misa Mingguan Minggu Pagi II', 'mingguan', DATE_ADD(CURDATE(), INTERVAL (7 - WEEKDAY(CURDATE())) DAY), '08:30:00', 12, WEEK(CURDATE()), YEAR(CURDATE()), 'Tahun B / Liturgi Biasa', 'Hijau', '', MD5(CONCAT('misa-4-', CURDATE())))
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 INSERT INTO `bookings` (`id`, `schedule_id`, `user_id`, `kategori_misa`, `minggu_ke`, `tahun`, `posisi_tugas`, `status_kehadiran`, `waktu_checkin`, `wa_reminder_sent`) VALUES

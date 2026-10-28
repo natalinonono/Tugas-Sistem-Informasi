@@ -30,25 +30,27 @@ function is_aktif(): bool {
     return is_logged_in() && ($_SESSION['user']['status'] ?? '') === 'aktif';
 }
 
-function require_login(string $redirect_to = '../login.php'): void {
+function require_login(?string $redirect_to = null): void {
     if (!is_logged_in()) {
         set_flash('error', 'Silakan masuk terlebih dahulu untuk mengakses sistem.');
-        header('Location: ' . $redirect_to);
+        $dest = $redirect_to ?: (base_url('login.php') ?: '/login.php');
+        header('Location: ' . $dest);
         exit;
     }
 }
 
-function require_pengurus(string $redirect_to = '../anggota/index.php'): void {
-    require_login('../login.php');
+function require_pengurus(?string $redirect_to = null): void {
+    require_login();
     if (!is_pengurus()) {
         set_flash('error', 'Akses ditolak. Halaman ini khusus untuk Pengurus Sakristi.');
-        header('Location: ' . $redirect_to);
+        $dest = $redirect_to ?: (base_url('anggota/index.php') ?: '/anggota/index.php');
+        header('Location: ' . $dest);
         exit;
     }
 }
 
-function require_anggota(string $redirect_to = '../pengurus/index.php'): void {
-    require_login('../login.php');
+function require_anggota(?string $redirect_to = null): void {
+    require_login();
 }
 
 function set_flash(string $type, string $message): void {

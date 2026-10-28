@@ -9,6 +9,7 @@ require_once __DIR__ . '/../includes/functions.php';
 require_pengurus();
 
 $pdo = get_db();
+$current_user = current_user();
 
 // Handle Form Submissions
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {

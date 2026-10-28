@@ -74,7 +74,7 @@ function generate_whatsapp_reminder_link(array $schedule, array $member): array 
         $phone = '62' . substr($phone, 1);
     }
 
-    $nama = $member['nama_panggilan'] ?: $member['nama_lengkap'] ?: 'Misdinar';
+    $nama = (!empty($member['nama_panggilan'])) ? $member['nama_panggilan'] : (!empty($member['nama_lengkap']) ? $member['nama_lengkap'] : 'Misdinar');
     $tanggal = format_indo_date($schedule['tanggal_misa'] ?? '');
     $jam = format_indo_time($schedule['jam_mulai'] ?? '');
     $judul = $schedule['judul_misa'] ?? 'Misa Kudus';
