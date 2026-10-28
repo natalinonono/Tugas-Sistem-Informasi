@@ -35,6 +35,23 @@ function get_db(): PDO {
 
     // Aktifkan SSL jika host adalah Cloud Remote (TiDB, Aiven, Railway, dll.)
     if ($isRemote) {
+        $caPaths = [
+            '/etc/ssl/certs/ca-certificates.crt',
+            '/etc/pki/tls/certs/ca-bundle.crt',
+            'D:/xampp/apache/bin/curl-ca-bundle.crt',
+            'C:/xampp/apache/bin/curl-ca-bundle.crt'
+        ];
+        $foundCa = false;
+        foreach ($caPaths as $path) {
+            if (file_exists($path)) {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = $path;
+                $foundCa = true;
+                break;
+            }
+        }
+        if (!$foundCa) {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = true;
+        }
         if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
             $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
