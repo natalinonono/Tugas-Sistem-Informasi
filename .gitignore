@@ -1,0 +1,10 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Vercel Cache
+.vercel
+
+# SQLite temporary journal
+*.sqlite-journal
