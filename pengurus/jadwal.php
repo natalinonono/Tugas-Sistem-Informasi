@@ -196,7 +196,7 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 
     <div style="display: flex; gap: 0.5rem; align-items: center; flex: 1; max-width: 380px;">
-      <input type="text" name="q" class="form-input" placeholder="Cari nama misa / romo..." value="<?= htmlspecialchars($search_query) ?>" style="padding: 0.4rem 0.75rem; font-size: 0.88rem;">
+      <input type="text" name="q" class="form-input" placeholder="Cari perayaan misa..." value="<?= htmlspecialchars($search_query) ?>" style="padding: 0.4rem 0.75rem; font-size: 0.88rem;">
       <button type="submit" class="btn btn-secondary btn-sm">Cari</button>
       <?php if ($search_query || $kategori_filter !== 'semua'): ?>
         <a href="jadwal.php" class="btn btn-secondary btn-sm" title="Reset filter">Reset</a>
@@ -245,7 +245,6 @@ require_once __DIR__ . '/../includes/header.php';
           <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem;">
             <div>📅 <strong><?= format_indo_date($item['tanggal_misa']) ?></strong></div>
             <div>⏰ Pukul <?= format_indo_time($item['jam_mulai']) ?></div>
-            <div>✝️ Selebran: <?= htmlspecialchars($item['nama_selebran'] ?: 'Romo Paroki') ?></div>
           </div>
 
           <!-- Progress Kuota Petugas -->
@@ -343,10 +342,7 @@ require_once __DIR__ . '/../includes/header.php';
           </div>
         </div>
 
-        <div>
-          <label class="form-label">Nama Selebran (Romo)</label>
-          <input type="text" name="nama_selebran" class="form-input" placeholder="Contoh: Romo Robertus Budi Prastowo, Pr">
-        </div>
+        <input type="hidden" name="nama_selebran" value="">
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="closeModal('modal-tambah-jadwal')">Batal</button>

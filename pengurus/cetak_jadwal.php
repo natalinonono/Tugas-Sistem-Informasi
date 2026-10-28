@@ -220,10 +220,6 @@ $roster = $bStmt->fetchAll();
       <td class="label">Target Hadir di Sakristi</td>
       <td>: Paling lambat H-30 Menit</td>
     </tr>
-    <tr>
-      <td class="label">Imam Selebran</td>
-      <td colspan="3">: <?= htmlspecialchars($schedule['nama_selebran'] ?: 'Romo Paroki') ?></td>
-    </tr>
   </table>
 
   <!-- DAFTAR PETUGAS -->
@@ -299,9 +295,9 @@ $roster = $bStmt->fetchAll();
   <div class="sig-section">
     <div class="sig-box">
       Mengetahui,<br>
-      <strong>Pastor Paroki / Pendamping</strong>
+      <strong>Pembina / Pendamping</strong>
       <div class="sig-space"></div>
-      ( <?= htmlspecialchars($schedule['nama_selebran'] ?: 'Romo Paroki') ?> )
+      ( .................................................... )
     </div>
 
     <div class="sig-box">

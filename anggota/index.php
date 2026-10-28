@@ -210,13 +210,6 @@ require_once __DIR__ . '/../includes/header.php';
           🛡️ <?= htmlspecialchars($active_duty['posisi_tugas']) ?>
         </div>
       </div>
-
-      <div>
-        <div style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Imam Selebran</div>
-        <div style="font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin-top: 2px;">
-          ✝️ <?= htmlspecialchars($active_duty['nama_selebran'] ?: 'Romo Paroki') ?>
-        </div>
-      </div>
     </div>
 
     <!-- Tombol Presensi & Status Action -->
@@ -287,7 +280,6 @@ require_once __DIR__ . '/../includes/header.php';
             <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem;">
               <div>📅 <strong><?= format_indo_date($s['tanggal_misa']) ?></strong></div>
               <div>⏰ Pukul <?= format_indo_time($s['jam_mulai']) ?></div>
-              <div>✝️ <?= htmlspecialchars($s['nama_selebran'] ?: 'Romo Paroki') ?></div>
             </div>
           </div>
 

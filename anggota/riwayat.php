@@ -144,11 +144,8 @@ require_once __DIR__ . '/../includes/header.php';
             <tr>
               <td><?= $no++ ?></td>
               <td>
-                <div style="margin-bottom: 2px;">
+                <div>
                   <strong style="font-size: 0.95rem; color: var(--text-main);"><?= htmlspecialchars($h['judul_misa']) ?></strong>
-                </div>
-                <div style="font-size: 0.78rem; color: var(--text-dim);">
-                  Imam: <?= htmlspecialchars($h['nama_selebran'] ?: 'Romo Paroki') ?>
                 </div>
               </td>
               <td>
