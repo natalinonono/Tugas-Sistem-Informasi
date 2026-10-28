@@ -144,9 +144,8 @@ require_once __DIR__ . '/../includes/header.php';
             <tr>
               <td><?= $no++ ?></td>
               <td>
-                <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 2px;">
+                <div style="margin-bottom: 2px;">
                   <strong style="font-size: 0.95rem; color: var(--text-main);"><?= htmlspecialchars($h['judul_misa']) ?></strong>
-                  <?= get_liturgical_badge($h['warna_liturgi']) ?>
                 </div>
                 <div style="font-size: 0.78rem; color: var(--text-dim);">
                   Imam: <?= htmlspecialchars($h['nama_selebran'] ?: 'Romo Paroki') ?>

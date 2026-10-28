@@ -175,9 +175,8 @@ require_once __DIR__ . '/../includes/header.php';
   <div class="card" style="margin-bottom: 2rem; border-left: 6px solid var(--emerald); background: linear-gradient(135deg, rgba(0, 108, 76, 0.05) 0%, var(--surface) 100%);">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
       <div>
-        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.4rem;">
+        <div style="margin-bottom: 0.4rem;">
           <span class="badge badge-emerald">✨ Tugas Altar Terdekat Anda</span>
-          <?= get_liturgical_badge($active_duty['warna_liturgi']) ?>
         </div>
         <h2 style="font-size: 1.45rem; font-weight: 800; color: var(--text-main);">
           <?= htmlspecialchars($active_duty['judul_misa']) ?>
@@ -268,14 +267,13 @@ require_once __DIR__ . '/../includes/header.php';
           $isMyBooking = !empty($s['my_booking_id']);
           $isFull = $s['terisi'] >= $s['kuota_maksimal'];
         ?>
-        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-left: 5px solid <?= $s['warna_liturgi'] === 'Merah' ? 'var(--error)' : ($s['warna_liturgi'] === 'Ungu' ? '#7B1FA2' : ($s['warna_liturgi'] === 'Putih' ? '#9E9E9E' : 'var(--emerald)')) ?>;">
+        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--primary);">
           <div>
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
               <div>
                 <span class="badge <?= $s['kategori'] === 'harian' ? 'badge-blue' : 'badge-amber' ?>" style="font-size: 0.72rem; text-transform: uppercase;">
                   <?= $s['kategori'] ?>
                 </span>
-                <?= get_liturgical_badge($s['warna_liturgi']) ?>
               </div>
               <span style="font-size: 0.8rem; font-weight: 600; color: <?= $isFull ? 'var(--error)' : 'var(--emerald)' ?>;">
                 <?= $s['terisi'] ?> / <?= $s['kuota_maksimal'] ?> Petugas

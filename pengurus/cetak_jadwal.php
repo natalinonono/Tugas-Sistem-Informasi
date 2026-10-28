@@ -217,14 +217,12 @@ $roster = $bStmt->fetchAll();
     <tr>
       <td class="label">Waktu Perayaan</td>
       <td>: Pukul <?= format_indo_time($schedule['jam_mulai']) ?></td>
-      <td class="label">Warna Liturgi</td>
-      <td>: <?= htmlspecialchars($schedule['warna_liturgi']) ?></td>
+      <td class="label">Target Hadir di Sakristi</td>
+      <td>: Paling lambat H-30 Menit</td>
     </tr>
     <tr>
       <td class="label">Imam Selebran</td>
-      <td>: <?= htmlspecialchars($schedule['nama_selebran'] ?: 'Romo Paroki') ?></td>
-      <td class="label">Target Hadir di Sakristi</td>
-      <td>: Paling lambat H-30 Menit</td>
+      <td colspan="3">: <?= htmlspecialchars($schedule['nama_selebran'] ?: 'Romo Paroki') ?></td>
     </tr>
   </table>
 

@@ -141,9 +141,8 @@ require_once __DIR__ . '/../includes/header.php';
           <?php foreach ($upcomingSchedules as $s): ?>
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--surface-low); border-radius: var(--radius-sm); border-left: 4px solid var(--primary);">
               <div>
-                <div style="display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.2rem;">
+                <div style="margin-bottom: 0.2rem;">
                   <strong style="font-size: 0.85rem;"><?= htmlspecialchars($s['judul_misa']) ?></strong>
-                  <?= get_liturgical_badge($s['warna_liturgi']) ?>
                 </div>
                 <div style="font-size: 0.74rem; color: var(--text-muted);">
                   <?= format_indo_date($s['tanggal_misa']) ?> • <?= format_indo_time($s['jam_mulai']) ?>

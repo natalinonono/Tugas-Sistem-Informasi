@@ -51,17 +51,8 @@ function format_indo_time(string $time): string {
     return substr($time, 0, 5) . ' WIB';
 }
 
-function get_liturgical_badge(string $warna): string {
-    $warna = ucfirst(strtolower($warna));
-    $classes = [
-        'Hijau' => 'badge-emerald',
-        'Putih' => 'badge-light',
-        'Merah' => 'badge-red',
-        'Ungu' => 'badge-purple',
-        'Merah Muda' => 'badge-pink'
-    ];
-    $cls = $classes[$warna] ?? 'badge-emerald';
-    return '<span class="badge ' . $cls . '">' . htmlspecialchars($warna) . '</span>';
+function get_liturgical_badge(string $warna = ''): string {
+    return '';
 }
 
 function get_attendance_badge(string $status): string {

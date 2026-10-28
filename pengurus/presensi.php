@@ -170,9 +170,8 @@ require_once __DIR__ . '/../includes/header.php';
     
     <!-- KOLOM KIRI: STATION QR CODE -->
     <div class="card" style="text-align: center; position: sticky; top: 80px;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+      <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 0.75rem;">
         <span class="badge badge-emerald">Live QR Station</span>
-        <?= get_liturgical_badge($selected_schedule['warna_liturgi']) ?>
       </div>
 
       <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem;">

@@ -224,7 +224,7 @@ require_once __DIR__ . '/../includes/header.php';
         $persen = $item['kuota_maksimal'] > 0 ? min(100, round(($item['terisi'] / $item['kuota_maksimal']) * 100)) : 0;
         $isPast = strtotime($item['tanggal_misa'] . ' ' . $item['jam_mulai']) < time();
       ?>
-      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-left: 5px solid <?= $item['warna_liturgi'] === 'Merah' ? 'var(--error)' : ($item['warna_liturgi'] === 'Ungu' ? '#7B1FA2' : ($item['warna_liturgi'] === 'Putih' ? '#9E9E9E' : 'var(--emerald)')) ?>; opacity: <?= $isPast ? '0.85' : '1' ?>;">
+      <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--primary); opacity: <?= $isPast ? '0.85' : '1' ?>;">
         <div>
           <!-- Header Card -->
           <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.75rem;">
@@ -232,7 +232,6 @@ require_once __DIR__ . '/../includes/header.php';
               <span class="badge <?= $item['kategori'] === 'harian' ? 'badge-blue' : 'badge-amber' ?>" style="font-size: 0.72rem; text-transform: uppercase;">
                 <?= $item['kategori'] === 'harian' ? 'Harian' : 'Mingguan' ?>
               </span>
-              <?= get_liturgical_badge($item['warna_liturgi']) ?>
             </div>
             <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-dim);">
               M-<?= $item['minggu_ke'] ?> / <?= $item['tahun'] ?>
@@ -313,22 +312,13 @@ require_once __DIR__ . '/../includes/header.php';
           <input type="text" name="judul_misa" class="form-input" placeholder="Contoh: Misa Hari Minggu Pagi I" required>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-          <div>
-            <label class="form-label">Kategori Misa *</label>
-            <select name="kategori" class="form-select" required>
-              <option value="mingguan">Misa Mingguan</option>
-              <option value="harian">Misa Harian</option>
-            </select>
-          </div>
-          <div>
-            <label class="form-label">Warna Liturgi *</label>
-            <select name="warna_liturgi" class="form-select" required>
-              <?php foreach (WARNA_LITURGI_OPTIONS as $w): ?>
-                <option value="<?= $w ?>"><?= $w ?></option>
-              <?php endforeach; ?>
-            </select>
-          </div>
+        <input type="hidden" name="warna_liturgi" value="Hijau">
+        <div>
+          <label class="form-label">Kategori Misa *</label>
+          <select name="kategori" class="form-select" required>
+            <option value="mingguan">Misa Mingguan</option>
+            <option value="harian">Misa Harian</option>
+          </select>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
