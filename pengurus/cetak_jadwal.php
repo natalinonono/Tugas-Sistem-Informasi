@@ -74,7 +74,7 @@ $roster = $bStmt->fetchAll();
       display: inline-block;
     }
     .btn-primary {
-      background: #006C4C;
+      background: #00236f;
       color: #fff;
       border: none;
     }
@@ -94,26 +94,38 @@ $roster = $bStmt->fetchAll();
 
     /* KOP SURAT */
     .kop-header {
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
       border-bottom: 3px double #111;
       padding-bottom: 12px;
       margin-bottom: 18px;
     }
+    .kop-logo {
+      width: 72px;
+      height: 72px;
+      object-fit: contain;
+    }
+    .kop-text {
+      text-align: center;
+    }
     .kop-church {
-      font-size: 18pt;
+      font-size: 16pt;
       font-weight: bold;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
+      color: #00236f;
     }
     .kop-sub {
-      font-size: 13pt;
+      font-size: 12pt;
       font-weight: bold;
-      margin-top: 2px;
+      margin-top: 1px;
     }
     .kop-meta {
-      font-size: 9.5pt;
+      font-size: 9pt;
       color: #333;
-      margin-top: 4px;
+      margin-top: 3px;
       font-family: Arial, sans-serif;
     }
 
@@ -191,10 +203,13 @@ $roster = $bStmt->fetchAll();
 
   <!-- KOP SURAT PAROKI -->
   <div class="kop-header">
-    <div class="kop-church">PAGUYUBAN PUTRA-PUTRI ALTAR (MISDINAR)</div>
-    <div class="kop-sub">GEREJA KATOLIK SANTA PERAWAN MARIA DIANGKAT KE SURGA</div>
-    <div class="kop-meta">
-      Paroki Purbowardayan - Surakarta &bull; Jl. Ahmad Yani No. 10 &bull; Telp. (0271) 642211
+    <img src="../assets/img/logo.png" alt="Logo Misdinar SPMR" class="kop-logo">
+    <div class="kop-text">
+      <div class="kop-church">PAGUYUBAN PUTRA-PUTRI ALTAR (MISDINAR)</div>
+      <div class="kop-sub">GEREJA KATOLIK SANTA PERAWAN MARIA DIANGKAT KE SURGA</div>
+      <div class="kop-meta">
+        Paroki Purbowardayan - Surakarta &bull; Jl. Ahmad Yani No. 10 &bull; Telp. (0271) 642211
+      </div>
     </div>
   </div>
 

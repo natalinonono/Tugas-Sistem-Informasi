@@ -1,7 +1,7 @@
 <?php
 /**
- * Presensi Sakristi & QR Code Station (Pengurus)
- * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
+ * Presensi Sakristi & Live Monitor - SiDinar Regina
+ * Tampilan & Desain Identik 100% dengan Web Next.js (/pengurus/presensi)
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -9,8 +9,6 @@ require_once __DIR__ . '/../includes/functions.php';
 require_pengurus();
 
 $pdo = get_db();
-
-// Auto-update status pendaftaran yang telah melewati batas toleransi menjadi alpa
 auto_update_expired_attendance($pdo);
 
 // Handle Update Status Presensi Manual oleh Pengurus
@@ -27,8 +25,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $stmt = $pdo->prepare("UPDATE bookings SET status_kehadiran = ?, waktu_checkin = ? WHERE id = ?");
             $stmt->execute([$new_status, $waktu, $booking_id]);
 
-            set_flash('success', "Status presensi berhasil diubah menjadi: " . strtoupper($new_status));
-            header("Location: presensi.php?schedule_id={$schedule_id}");
+            set_flash('success', "Status presensi misdinar berhasil diubah menjadi: " . strtoupper($new_status));
+            header("Location: presensi.php" . ($schedule_id ? "?schedule_id={$schedule_id}" : ""));
             exit;
         }
     }
@@ -43,10 +41,9 @@ $schedules_stmt = $pdo->query("
 ");
 $all_schedules = $schedules_stmt->fetchAll();
 
-// Tentukan jadwal yang dipilih (default jadwal teratas / hari ini)
+// Filter & Jadwal Terpilih
 $selected_id = (int)($_GET['schedule_id'] ?? 0);
 if (!$selected_id && !empty($all_schedules)) {
-    // Cari yang paling dekat dengan hari ini
     $today = date('Y-m-d');
     foreach ($all_schedules as $s) {
         if ($s['tanggal_misa'] >= $today) {
@@ -58,15 +55,18 @@ if (!$selected_id && !empty($all_schedules)) {
     }
 }
 
+$status_filter = $_GET['status'] ?? 'semua';
+$search = trim($_GET['q'] ?? '');
+
 $selected_schedule = null;
 $roster = [];
-$stats = [
+$counters = [
     'total' => 0,
     'hadir' => 0,
     'terlambat' => 0,
+    'terdaftar' => 0,
     'izin' => 0,
     'alpa' => 0,
-    'terdaftar' => 0
 ];
 
 if ($selected_id) {
@@ -75,249 +75,283 @@ if ($selected_id) {
     $selected_schedule = $stmt->fetch();
 
     if ($selected_schedule) {
-        $rStmt = $pdo->prepare("
-            SELECT b.*, p.nama_lengkap, p.nama_panggilan, p.no_telepon, p.jenjang, p.asal_wilayah_teks
+        $sql = "
+            SELECT b.*, p.nama_lengkap, p.nama_panggilan, p.no_telepon, p.jenjang, p.asal_wilayah_teks, s.judul_misa, s.tanggal_misa, s.jam_mulai, s.warna_liturgi
             FROM bookings b
             JOIN profiles p ON b.user_id = p.id
+            JOIN mass_schedules s ON b.schedule_id = s.id
             WHERE b.schedule_id = ?
-            ORDER BY b.posisi_tugas ASC, p.nama_panggilan ASC
-        ");
-        $rStmt->execute([$selected_id]);
+        ";
+        $params = [$selected_id];
+
+        if ($status_filter !== 'semua' && in_array($status_filter, ['terdaftar', 'hadir', 'terlambat', 'izin', 'alpa'])) {
+            $sql .= " AND b.status_kehadiran = ?";
+            $params[] = $status_filter;
+        }
+
+        if ($search) {
+            $sql .= " AND (p.nama_lengkap LIKE ? OR p.nama_panggilan LIKE ? OR b.posisi_tugas LIKE ?)";
+            $params[] = "%$search%";
+            $params[] = "%$search%";
+            $params[] = "%$search%";
+        }
+
+        $sql .= " ORDER BY b.posisi_tugas ASC, p.nama_panggilan ASC";
+        $rStmt = $pdo->prepare($sql);
+        $rStmt->execute($params);
         $roster = $rStmt->fetchAll();
 
-        $stats['total'] = count($roster);
-        foreach ($roster as $r) {
-            $st = $r['status_kehadiran'] ?? 'terdaftar';
-            if (isset($stats[$st])) {
-                $stats[$st]++;
+        // Ambil counter lengkap untuk jadwal ini
+        $cStmt = $pdo->prepare("SELECT status_kehadiran, COUNT(*) as cnt FROM bookings WHERE schedule_id = ? GROUP BY status_kehadiran");
+        $cStmt->execute([$selected_id]);
+        $cRows = $cStmt->fetchAll();
+
+        $all_cnt = 0;
+        foreach ($cRows as $cr) {
+            $st = $cr['status_kehadiran'];
+            $cnt = (int)$cr['cnt'];
+            $all_cnt += $cnt;
+            if (isset($counters[$st])) {
+                $counters[$st] = $cnt;
             }
         }
+        $counters['total'] = $all_cnt;
     }
 }
 
 $qr_token = $selected_schedule['qr_token'] ?? ('misa-' . ($selected_schedule['id'] ?? 0));
 $qr_api_url = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=" . urlencode($qr_token);
 
-$page_title = 'Presensi Sakristi & QR Code';
+$page_title = 'Monitor Presensi Digital';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
-  <div>
-    <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">
-      📋 Presensi Sakristi & Station QR Check-in
-    </h1>
-    <p style="color: var(--text-muted); font-size: 0.95rem;">
-      Tampilkan QR Code untuk dipindai oleh misdinar di sakristi, atau kelola status kehadiran secara real-time.
-    </p>
-  </div>
-
-  <div style="display: flex; gap: 0.5rem; align-items: center;">
-    <label style="font-weight: 600; font-size: 0.9rem; color: var(--text-muted);">Pilih Misa:</label>
-    <select class="form-select" style="min-width: 260px;" onchange="window.location.href='presensi.php?schedule_id=' + this.value">
-      <?php foreach ($all_schedules as $item): ?>
-        <option value="<?= $item['id'] ?>" <?= $item['id'] == $selected_id ? 'selected' : '' ?>>
-          <?= format_indo_date($item['tanggal_misa']) ?> - <?= htmlspecialchars($item['judul_misa']) ?> (<?= format_indo_time($item['jam_mulai']) ?>)
-        </option>
-      <?php endforeach; ?>
-    </select>
-  </div>
-</div>
-
-<?php if (!$selected_schedule): ?>
-  <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
-    <div style="font-size: 3rem; margin-bottom: 0.5rem;">📅</div>
-    <h3 style="font-size: 1.2rem; font-weight: 700;">Belum Ada Jadwal Misa</h3>
-    <p style="color: var(--text-muted); margin-bottom: 1rem;">Silakan tambahkan jadwal terlebih dahulu di menu Jadwal Misa.</p>
-    <a href="jadwal.php" class="btn btn-primary">Buka Menu Jadwal</a>
-  </div>
-<?php else: ?>
-
-  <!-- Ringkasan Statistik Presensi -->
-  <div class="stats-grid" style="margin-bottom: 1.5rem;">
-    <div class="stat-card">
-      <div class="stat-icon" style="background: var(--primary-container); color: var(--primary);">👥</div>
-      <div class="stat-info">
-        <div class="stat-value"><?= $stats['total'] ?> / <?= $selected_schedule['kuota_maksimal'] ?></div>
-        <div class="stat-label">Total Terdaftar</div>
+<div class="flex flex-col gap-6">
+  <!-- Top Header identik Next.js -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div class="flex flex-col">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1">
+          qr_code_scanner
+        </span>
+        <span class="text-xs uppercase font-bold text-secondary tracking-wider">
+          Live Monitor Sakristi SPMR
+        </span>
       </div>
+      <h1 class="font-headline font-bold text-2xl text-primary tracking-tight">
+        Monitor Presensi Digital &amp; Kedisiplinan
+      </h1>
+      <p class="text-xs text-on-surface-variant">
+        Pelacakan kehadiran misdinar real-time, toleransi presensi (+45m pasca misa), dan override manual pengurus.
+      </p>
     </div>
 
-    <div class="stat-card">
-      <div class="stat-icon" style="background: var(--emerald-bg); color: var(--emerald-text);">✅</div>
-      <div class="stat-info">
-        <div class="stat-value" style="color: var(--emerald);"><?= $stats['hadir'] ?></div>
-        <div class="stat-label">Hadir Tepat Waktu</div>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon" style="background: var(--amber-bg); color: var(--amber-text);">⚠️</div>
-      <div class="stat-info">
-        <div class="stat-value" style="color: var(--amber);"><?= $stats['terlambat'] ?></div>
-        <div class="stat-label">Terlambat</div>
-      </div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-icon" style="background: var(--surface-high); color: var(--text-muted);">⏳</div>
-      <div class="stat-info">
-        <div class="stat-value"><?= $stats['terdaftar'] ?></div>
-        <div class="stat-label">Belum Presensi</div>
-      </div>
+    <div class="flex items-center gap-2 self-start sm:self-auto">
+      <button
+        type="button"
+        onclick="window.print()"
+        class="px-4 py-2.5 rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high text-xs font-semibold flex items-center gap-1.5 transition-colors"
+      >
+        <span class="material-symbols-outlined text-base text-primary">print</span>
+        <span>Cetak Rekap Presensi</span>
+      </button>
     </div>
   </div>
 
-  <!-- Layout 2 Kolom: QR Code Card & Live Attendance Manager -->
-  <div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; align-items: start;">
-    
-    <!-- KOLOM KIRI: STATION QR CODE -->
-    <div class="card" style="text-align: center; position: sticky; top: 80px;">
-      <div style="display: flex; justify-content: center; align-items: center; margin-bottom: 0.75rem;">
-        <span class="badge badge-emerald">Live QR Station</span>
+  <!-- Dropdown Selector Jadwal Misa -->
+  <div class="p-4 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div class="flex items-center gap-2 text-xs font-semibold text-on-surface">
+      <span class="material-symbols-outlined text-primary text-lg">event_available</span>
+      <span>Pilih Jadwal Misa:</span>
+    </div>
+    <form method="GET" action="" class="flex-1 max-w-xl">
+      <select
+        name="schedule_id"
+        onchange="this.form.submit()"
+        class="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-low text-on-surface text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+      >
+        <?php foreach ($all_schedules as $s): ?>
+          <option value="<?= $s['id'] ?>" <?= $selected_id == $s['id'] ? 'selected' : '' ?>>
+            <?= htmlspecialchars($s['judul_misa']) ?> • <?= format_indo_date($s['tanggal_misa']) ?> (<?= substr($s['jam_mulai'], 0, 5) ?> WIB) - [<?= $s['warna_liturgi'] ?>]
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </form>
+  </div>
+
+  <!-- Summary Stat Pills identik Next.js (6 grid) -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <a href="?schedule_id=<?= $selected_id ?>&status=semua" class="p-3.5 rounded-2xl bg-surface-container-lowest border <?= $status_filter === 'semua' ? 'border-primary ring-2 ring-primary/20' : 'border-surface-container' ?> text-center flex flex-col hover:bg-surface-container-low transition-colors">
+      <span class="text-[10px] text-on-surface-variant uppercase font-medium">Total Terdaftar</span>
+      <span class="font-headline font-bold text-xl text-primary"><?= $counters['total'] ?></span>
+    </a>
+    <a href="?schedule_id=<?= $selected_id ?>&status=hadir" class="p-3.5 rounded-2xl bg-surface-container-lowest border <?= $status_filter === 'hadir' ? 'border-emerald-600 ring-2 ring-emerald-500/20' : 'border-surface-container' ?> text-center flex flex-col hover:bg-surface-container-low transition-colors">
+      <span class="text-[10px] text-emerald-800 uppercase font-medium">Tepat Waktu</span>
+      <span class="font-headline font-bold text-xl text-emerald-700"><?= $counters['hadir'] ?></span>
+    </a>
+    <a href="?schedule_id=<?= $selected_id ?>&status=terlambat" class="p-3.5 rounded-2xl bg-surface-container-lowest border <?= $status_filter === 'terlambat' ? 'border-amber-600 ring-2 ring-amber-500/20' : 'border-surface-container' ?> text-center flex flex-col hover:bg-surface-container-low transition-colors">
+      <span class="text-[10px] text-amber-800 uppercase font-medium">Terlambat</span>
+      <span class="font-headline font-bold text-xl text-amber-600"><?= $counters['terlambat'] ?></span>
+    </a>
+    <a href="?schedule_id=<?= $selected_id ?>&status=terdaftar" class="p-3.5 rounded-2xl bg-surface-container-lowest border <?= $status_filter === 'terdaftar' ? 'border-primary ring-2 ring-primary/20' : 'border-surface-container' ?> text-center flex flex-col hover:bg-surface-container-low transition-colors">
+      <span class="text-[10px] text-primary uppercase font-medium">Belum Presensi</span>
+      <span class="font-headline font-bold text-xl text-primary"><?= $counters['terdaftar'] ?></span>
+    </a>
+    <a href="?schedule_id=<?= $selected_id ?>&status=izin" class="p-3.5 rounded-2xl bg-surface-container-lowest border <?= $status_filter === 'izin' ? 'border-purple-600 ring-2 ring-purple-500/20' : 'border-surface-container' ?> text-center flex flex-col hover:bg-surface-container-low transition-colors">
+      <span class="text-[10px] text-purple-800 uppercase font-medium">Izin Sakristi</span>
+      <span class="font-headline font-bold text-xl text-purple-700"><?= $counters['izin'] ?></span>
+    </a>
+    <a href="?schedule_id=<?= $selected_id ?>&status=alpa" class="p-3.5 rounded-2xl bg-surface-container-lowest border <?= $status_filter === 'alpa' ? 'border-error ring-2 ring-error/20' : 'border-surface-container' ?> text-center flex flex-col hover:bg-surface-container-low transition-colors">
+      <span class="text-[10px] text-error uppercase font-medium">Alpa (Toleransi +45m)</span>
+      <span class="font-headline font-bold text-xl text-error"><?= $counters['alpa'] ?></span>
+    </a>
+  </div>
+
+  <!-- QR Station & Roster Table Grid -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- QR Code Station Card (Kiri) -->
+    <div class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col items-center text-center gap-4">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-xl">qr_code_2</span>
+        <h3 class="font-headline font-bold text-base text-primary">Station QR Code Presensi</h3>
+      </div>
+      <p class="text-[11px] text-on-surface-variant max-w-xs">
+        Letakkan layar ini di meja sakristi atau cetak untuk dipindai oleh misdinar bertugas.
+      </p>
+
+      <div class="p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md">
+        <img
+          src="<?= $qr_api_url ?>"
+          alt="QR Code Presensi Sakristi"
+          class="w-48 h-48 object-contain"
+        />
       </div>
 
-      <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem;">
-        <?= htmlspecialchars($selected_schedule['judul_misa']) ?>
-      </h3>
-      <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-        <?= format_indo_date($selected_schedule['tanggal_misa']) ?><br>
-        <strong>Pukul <?= format_indo_time($selected_schedule['jam_mulai']) ?></strong>
+      <div class="flex flex-col gap-1 w-full pt-1">
+        <span class="text-xs font-bold text-on-surface"><?= htmlspecialchars($selected_schedule['judul_misa'] ?? 'Misa') ?></span>
+        <span class="text-[11px] text-on-surface-variant">
+          <?= format_indo_date($selected_schedule['tanggal_misa'] ?? date('Y-m-d')) ?> • <?= substr($selected_schedule['jam_mulai'] ?? '00:00', 0, 5) ?> WIB
+        </span>
+        <span class="text-[10px] font-mono bg-surface-container-low px-2 py-1 rounded text-outline mt-1 truncate">
+          Token: <?= htmlspecialchars($qr_token) ?>
+        </span>
       </div>
+    </div>
 
-      <!-- QR Code Image -->
-      <div style="background: #ffffff; padding: 12px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); display: inline-block; border: 1px solid var(--border);">
-        <img src="<?= $qr_api_url ?>" alt="QR Code Presensi" style="width: 220px; height: 220px; display: block;" onerror="this.onerror=null; this.src='https://chart.googleapis.com/chart?cht=qr&chs=220x220&chl=<?= urlencode($qr_token) ?>';">
-      </div>
-
-      <!-- Token Manual Text Code -->
-      <div style="margin-top: 1rem; background: var(--surface-low); padding: 0.75rem; border-radius: var(--radius-sm);">
-        <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.2rem;">KODE TOKEN PRESENSI:</div>
-        <div style="font-family: monospace; font-size: 1.05rem; font-weight: 700; letter-spacing: 2px; color: var(--primary);">
-          <?= htmlspecialchars($qr_token) ?>
+    <!-- Live Roster & Manual Override Table (Kanan, 2 Kolom) -->
+    <div class="lg:col-span-2 p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col gap-4">
+      <!-- Search & Status Filter Filter Bar -->
+      <form method="GET" action="" class="flex flex-col sm:flex-row items-center justify-between gap-3">
+        <input type="hidden" name="schedule_id" value="<?= $selected_id ?>">
+        <div class="relative w-full sm:w-72">
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">
+            search
+          </span>
+          <input
+            type="text"
+            name="q"
+            value="<?= htmlspecialchars($search) ?>"
+            placeholder="Cari nama atau peran..."
+            class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-low text-xs border border-surface-container focus:outline-none"
+          />
         </div>
-      </div>
 
-      <div style="font-size: 0.78rem; color: var(--text-dim); margin-top: 0.75rem; line-height: 1.4;">
-        Arahkan kamera HP misdinar atau masukkan token di atas pada menu Beranda Anggota untuk presensi otomatis.
-      </div>
-    </div>
-
-    <!-- KOLOM KANAN: TABEL PRESENSI REALTIME & KONTROL MANUAL -->
-    <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-        <div>
-          <h3 style="font-size: 1.15rem; font-weight: 700;">Daftar Petugas Altar (<?= count($roster) ?> Misdinar)</h3>
-          <div style="font-size: 0.85rem; color: var(--text-muted);">Ubah status kehadiran secara manual jika misdinar tidak membawa ponsel.</div>
+        <div class="flex items-center gap-1.5 self-start sm:self-auto">
+          <span class="text-xs text-on-surface-variant font-medium">Filter:</span>
+          <select
+            name="status"
+            onchange="this.form.submit()"
+            class="px-2.5 py-1.5 rounded-xl bg-surface-container-low text-xs font-semibold border border-surface-container text-on-surface"
+          >
+            <option value="semua" <?= $status_filter === 'semua' ? 'selected' : '' ?>>Semua Status</option>
+            <option value="terdaftar" <?= $status_filter === 'terdaftar' ? 'selected' : '' ?>>Belum Presensi</option>
+            <option value="hadir" <?= $status_filter === 'hadir' ? 'selected' : '' ?>>Tepat Waktu</option>
+            <option value="terlambat" <?= $status_filter === 'terlambat' ? 'selected' : '' ?>>Terlambat</option>
+            <option value="izin" <?= $status_filter === 'izin' ? 'selected' : '' ?>>Izin</option>
+            <option value="alpa" <?= $status_filter === 'alpa' ? 'selected' : '' ?>>Alpa</option>
+          </select>
         </div>
-
-        <div style="display: flex; gap: 0.5rem;">
-          <a href="cetak_jadwal.php?id=<?= $selected_schedule['id'] ?>" target="_blank" class="btn btn-secondary btn-sm">
-            🖨️ Cetak Presensi
-          </a>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="window.location.reload()">
-            🔄 Muat Ulang
-          </button>
-        </div>
-      </div>
+      </form>
 
       <?php if (empty($roster)): ?>
-        <div style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
-          <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">👥</div>
-          <p>Belum ada misdinar yang terdaftar di jadwal misa ini.</p>
-          <a href="jadwal.php?view_roster=<?= $selected_schedule['id'] ?>" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">
-            + Alokasikan Petugas Sekarang
-          </a>
+        <div class="py-14 text-center text-xs text-on-surface-variant flex flex-col items-center gap-2">
+          <span class="material-symbols-outlined text-4xl opacity-40">group_off</span>
+          <span>Belum ada misdinar yang terdaftar di jadwal ini.</span>
         </div>
       <?php else: ?>
-        <div class="table-responsive">
-          <table class="table">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
             <thead>
-              <tr>
-                <th>Petugas</th>
-                <th>Posisi Tugas</th>
-                <th>Status Kehadiran</th>
-                <th>Waktu Presensi</th>
-                <th style="text-align: right;">Ubah Status Manual</th>
+              <tr class="border-b border-surface-container text-on-surface-variant font-semibold">
+                <th class="py-3 px-3">Petugas Altar</th>
+                <th class="py-3 px-3">Peran Liturgi</th>
+                <th class="py-3 px-3">Status</th>
+                <th class="py-3 px-3">Waktu Check-in</th>
+                <th class="py-3 px-3 text-right">Ubah Presensi</th>
               </tr>
             </thead>
-            <tbody>
-              <?php foreach ($roster as $p): ?>
-                <tr>
-                  <td>
-                    <strong><?= htmlspecialchars($p['nama_panggilan']) ?></strong>
-                    <div style="font-size: 0.78rem; color: var(--text-dim);">
-                      <?= htmlspecialchars($p['nama_lengkap']) ?> &bull; <?= $p['jenjang'] ?>
+            <tbody class="divide-y divide-surface-container">
+              <?php foreach ($roster as $r): 
+                $st = $r['status_kehadiran'] ?? 'terdaftar';
+                $badge_class = match($st) {
+                  'hadir' => 'bg-emerald-100 text-emerald-800',
+                  'terlambat' => 'bg-amber-100 text-amber-800',
+                  'izin' => 'bg-purple-100 text-purple-800',
+                  'alpa' => 'bg-red-100 text-red-800',
+                  default => 'bg-surface-container text-on-surface-variant'
+                };
+              ?>
+              <tr class="hover:bg-surface-container-low transition-colors">
+                <td class="py-3 px-3">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-7 h-7 rounded-full bg-primary-fixed text-primary font-bold text-[11px] flex items-center justify-center shrink-0">
+                      <?= strtoupper(substr($r['nama_panggilan'] ?: $r['nama_lengkap'], 0, 2)) ?>
                     </div>
-                  </td>
-                  <td>
-                    <span class="badge badge-light" style="font-weight: 600;">
-                      <?= htmlspecialchars($p['posisi_tugas']) ?>
-                    </span>
-                  </td>
-                  <td>
-                    <?= get_attendance_badge($p['status_kehadiran']) ?>
-                  </td>
-                  <td style="font-size: 0.82rem; color: var(--text-muted);">
-                    <?= $p['waktu_checkin'] ? date('H:i:s', strtotime($p['waktu_checkin'])) . ' WIB' : '-' ?>
-                  </td>
-                  <td style="text-align: right;">
-                    <div style="display: inline-flex; gap: 0.25rem;">
-                      <!-- Set Hadir -->
-                      <form method="POST" action="presensi.php" style="margin: 0;">
-                        <input type="hidden" name="action" value="update_attendance">
-                        <input type="hidden" name="booking_id" value="<?= $p['id'] ?>">
-                        <input type="hidden" name="schedule_id" value="<?= $selected_schedule['id'] ?>">
-                        <input type="hidden" name="status_kehadiran" value="hadir">
-                        <button type="submit" class="btn btn-sm <?= $p['status_kehadiran'] === 'hadir' ? 'btn-primary' : 'btn-secondary' ?>" title="Set Hadir Tepat Waktu">
-                          ✅ Hadir
-                        </button>
-                      </form>
-
-                      <!-- Set Terlambat -->
-                      <form method="POST" action="presensi.php" style="margin: 0;">
-                        <input type="hidden" name="action" value="update_attendance">
-                        <input type="hidden" name="booking_id" value="<?= $p['id'] ?>">
-                        <input type="hidden" name="schedule_id" value="<?= $selected_schedule['id'] ?>">
-                        <input type="hidden" name="status_kehadiran" value="terlambat">
-                        <button type="submit" class="btn btn-sm <?= $p['status_kehadiran'] === 'terlambat' ? 'btn-primary' : 'btn-secondary' ?>" title="Set Terlambat">
-                          ⚠️ Lambat
-                        </button>
-                      </form>
-
-                      <!-- Set Izin -->
-                      <form method="POST" action="presensi.php" style="margin: 0;">
-                        <input type="hidden" name="action" value="update_attendance">
-                        <input type="hidden" name="booking_id" value="<?= $p['id'] ?>">
-                        <input type="hidden" name="schedule_id" value="<?= $selected_schedule['id'] ?>">
-                        <input type="hidden" name="status_kehadiran" value="izin">
-                        <button type="submit" class="btn btn-sm <?= $p['status_kehadiran'] === 'izin' ? 'btn-primary' : 'btn-secondary' ?>" title="Set Izin">
-                          📩 Izin
-                        </button>
-                      </form>
-
-                      <!-- Set Alpa -->
-                      <form method="POST" action="presensi.php" style="margin: 0;">
-                        <input type="hidden" name="action" value="update_attendance">
-                        <input type="hidden" name="booking_id" value="<?= $p['id'] ?>">
-                        <input type="hidden" name="schedule_id" value="<?= $selected_schedule['id'] ?>">
-                        <input type="hidden" name="status_kehadiran" value="alpa">
-                        <button type="submit" class="btn btn-sm <?= $p['status_kehadiran'] === 'alpa' ? 'btn-primary' : 'btn-secondary' ?>" title="Set Alpa">
-                          ❌ Alpa
-                        </button>
-                      </form>
+                    <div>
+                      <div class="font-bold text-on-surface"><?= htmlspecialchars($r['nama_lengkap']) ?></div>
+                      <div class="text-[10px] text-on-surface-variant"><?= htmlspecialchars($r['asal_wilayah_teks']) ?></div>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="inline-flex px-2 py-0.5 rounded-md bg-surface-container text-[11px] font-medium text-on-surface">
+                    <?= htmlspecialchars($r['posisi_tugas']) ?>
+                  </span>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold <?= $badge_class ?> uppercase">
+                    <?= $st ?>
+                  </span>
+                </td>
+                <td class="py-3 px-3 font-mono text-[11px] text-on-surface-variant">
+                  <?= $r['waktu_checkin'] ? date('H:i:s', strtotime($r['waktu_checkin'])) . ' WIB' : 'Belum absen' ?>
+                </td>
+                <td class="py-3 px-3 text-right">
+                  <form method="POST" action="" class="inline-flex items-center gap-1">
+                    <input type="hidden" name="action" value="update_attendance">
+                    <input type="hidden" name="booking_id" value="<?= $r['id'] ?>">
+                    <input type="hidden" name="schedule_id" value="<?= $selected_id ?>">
+                    <select
+                      name="status_kehadiran"
+                      onchange="this.form.submit()"
+                      class="px-2 py-1 rounded-lg text-[11px] font-semibold bg-surface-container-high border border-surface-container text-on-surface cursor-pointer"
+                    >
+                      <option value="terdaftar" <?= $st === 'terdaftar' ? 'selected' : '' ?>>Terdaftar</option>
+                      <option value="hadir" <?= $st === 'hadir' ? 'selected' : '' ?>>Hadir</option>
+                      <option value="terlambat" <?= $st === 'terlambat' ? 'selected' : '' ?>>Terlambat</option>
+                      <option value="izin" <?= $st === 'izin' ? 'selected' : '' ?>>Izin</option>
+                      <option value="alpa" <?= $st === 'alpa' ? 'selected' : '' ?>>Alpa</option>
+                    </select>
+                  </form>
+                </td>
+              </tr>
               <?php endforeach; ?>
             </tbody>
           </table>
         </div>
       <?php endif; ?>
     </div>
-
   </div>
-
-<?php endif; ?>
+</div>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

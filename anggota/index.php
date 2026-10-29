@@ -1,7 +1,7 @@
 <?php
 /**
- * Beranda Anggota Misdinar (Dashboard & Booking Mandiri)
- * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
+ * Beranda Anggota Misdinar (Dashboard & Booking Mandiri) - SiDinar Regina
+ * Tampilan & Desain Identik 100% dengan Web Next.js (/anggota)
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -10,8 +10,6 @@ require_login();
 
 $user = current_user();
 $pdo = get_db();
-
-// Auto-update status pendaftaran yang telah melewati batas toleransi menjadi alpa
 auto_update_expired_attendance($pdo);
 
 // Handle Form Submissions (Pendaftaran Tugas Mandiri & Pembatalan)
@@ -30,7 +28,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $posisi = trim($_POST['posisi_tugas'] ?? 'Petugas Altar');
 
         if ($schedule_id) {
-            // Cek jadwal
             $sStmt = $pdo->prepare("SELECT * FROM mass_schedules WHERE id = ?");
             $sStmt->execute([$schedule_id]);
             $sch = $sStmt->fetch();
@@ -87,10 +84,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     }
 }
 
-// 1. Ambil Penugasan Aktif Terdekat untuk User Ini
 $today = date('Y-m-d');
+$current_week = (int)date('W');
+$current_year = (int)date('Y');
+
+// 1. Ambil Penugasan Aktif Terdekat untuk User Ini
 $active_duty_stmt = $pdo->prepare("
-    SELECT b.*, s.judul_misa, s.kategori, s.tanggal_misa, s.jam_mulai, s.warna_liturgi, s.nama_selebran, s.qr_token
+    SELECT b.*, s.judul_misa, s.kategori, s.tanggal_misa, s.jam_mulai, s.warna_liturgi, s.qr_token
     FROM bookings b
     JOIN mass_schedules s ON b.schedule_id = s.id
     WHERE b.user_id = ? AND s.tanggal_misa >= ?
@@ -100,390 +100,482 @@ $active_duty_stmt = $pdo->prepare("
 $active_duty_stmt->execute([$user['id'], $today]);
 $active_duty = $active_duty_stmt->fetch();
 
-// 2. Ambil Jadwal Misa Mendatang yang Terbuka
-$upcoming_stmt = $pdo->prepare("
-    SELECT s.*,
-           COUNT(b.id) as terisi,
-           MAX(CASE WHEN b.user_id = ? THEN b.id ELSE NULL END) as my_booking_id,
-           MAX(CASE WHEN b.user_id = ? THEN b.posisi_tugas ELSE NULL END) as my_position,
-           MAX(CASE WHEN b.user_id = ? THEN b.status_kehadiran ELSE NULL END) as my_status
-    FROM mass_schedules s
-    LEFT JOIN bookings b ON s.id = b.schedule_id
-    WHERE s.tanggal_misa >= ?
-    GROUP BY s.id
-    ORDER BY s.tanggal_misa ASC, s.jam_mulai ASC
-    LIMIT 20
+// 2. Hitung Kuota Tugas Pekan Ini (Harian & Mingguan)
+$quota_stmt = $pdo->prepare("
+    SELECT kategori_misa, COUNT(*) as cnt 
+    FROM bookings 
+    WHERE user_id = ? AND minggu_ke = ? AND tahun = ?
+    GROUP BY kategori_misa
 ");
-$upcoming_stmt->execute([$user['id'], $user['id'], $user['id'], $today]);
-$open_schedules = $upcoming_stmt->fetchAll();
+$quota_stmt->execute([$user['id'], $current_week, $current_year]);
+$quota_rows = $quota_stmt->fetchAll();
 
-// 3. Ambil Warta Sakristi Terbaru
-$warta_stmt = $pdo->query("
-    SELECT a.*, p.nama_panggilan
-    FROM announcements a
-    LEFT JOIN profiles p ON a.created_by = p.id
-    ORDER BY a.is_pinned DESC, a.created_at DESC
-    LIMIT 5
-");
-$announcements = $warta_stmt->fetchAll();
+$has_harian = false;
+$has_mingguan = false;
+foreach ($quota_rows as $qr) {
+    if ($qr['kategori_misa'] === 'harian' && (int)$qr['cnt'] > 0) $has_harian = true;
+    if ($qr['kategori_misa'] === 'mingguan' && (int)$qr['cnt'] > 0) $has_mingguan = true;
+}
+
+// 3. Warta Sakristi Terbaru
+$warta_stmt = $pdo->query("SELECT * FROM announcements ORDER BY is_pinned DESC, created_at DESC LIMIT 3");
+$recent_warta = $warta_stmt->fetchAll();
+
+// 4. Jadwal Misa yang Tersedia
+$kat_filter = $_GET['kat'] ?? 'semua';
+$sch_sql = "
+    SELECT s.*, 
+           (SELECT COUNT(*) FROM bookings WHERE schedule_id = s.id) as terisi,
+           (SELECT status_kehadiran FROM bookings WHERE schedule_id = s.id AND user_id = ?) as my_status,
+           (SELECT id FROM bookings WHERE schedule_id = s.id AND user_id = ?) as my_booking_id
+    FROM mass_schedules s
+    WHERE s.tanggal_misa >= ?
+";
+$sch_params = [$user['id'], $user['id'], $today];
+
+if ($kat_filter === 'harian' || $kat_filter === 'mingguan') {
+    $sch_sql .= " AND s.kategori = ?";
+    $sch_params[] = $kat_filter;
+}
+
+$sch_sql .= " ORDER BY s.tanggal_misa ASC, s.jam_mulai ASC LIMIT 20";
+$sch_stmt = $pdo->prepare($sch_sql);
+$sch_stmt->execute($sch_params);
+$available_schedules = $sch_stmt->fetchAll();
+
+$liturgical_positions = [
+    'Petugas Altar',
+    'Thurifer (Dupa)',
+    'Navis (Wadah Dupa)',
+    'Krusifer (Salib)',
+    'Akolit Lilin 1',
+    'Akolit Lilin 2',
+    'Petugas Lektor Altar'
+];
 
 $page_title = 'Beranda Misdinar';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<!-- Sambutan & Status Akun -->
-<div style="margin-bottom: 1.5rem;">
-  <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
-    <div>
-      <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">
-        Berkah Dalem, <?= htmlspecialchars($user['nama_panggilan']) ?>! 👋
-      </h1>
-      <p style="color: var(--text-muted); font-size: 0.95rem;">
-        Selamat datang di portal pelayanan altar SiDinar Regina Paroki Purbowardayan.
-      </p>
-    </div>
+<div class="flex flex-col gap-8">
+  <!-- 1. Header & Identity Section identik Next.js -->
+  <section class="relative overflow-hidden rounded-3xl bg-surface-container-lowest p-6 sm:p-8 shadow-xs border border-surface-container">
+    <!-- Ambient Accent Blurs -->
+    <div class="ambient-accent-top"></div>
+    <div class="ambient-accent-bottom"></div>
 
-    <div style="display: flex; align-items: center; gap: 0.5rem;">
-      <span class="badge <?= $user['status'] === 'aktif' ? 'badge-emerald' : 'badge-amber' ?>" style="font-size: 0.85rem; padding: 6px 12px;">
-        Status Akun: <?= ucfirst($user['status']) ?>
-      </span>
-      <span class="badge badge-light" style="font-size: 0.85rem; padding: 6px 12px;">
-        Jenjang: <?= htmlspecialchars($user['jenjang']) ?>
-      </span>
-    </div>
-  </div>
-</div>
+    <div class="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+      <div class="flex flex-col gap-2 max-w-2xl">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold <?= $user['status'] === 'aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' ?>">
+            <span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1">
+              <?= $user['status'] === 'aktif' ? 'check_circle' : 'hourglass_top' ?>
+            </span>
+            <span><?= $user['status'] === 'aktif' ? 'Anggota Aktif' : 'Menunggu Persetujuan Pengurus' ?></span>
+          </span>
 
-<?php if ($user['status'] === 'pending'): ?>
-  <!-- Warning Akun Menunggu Verifikasi -->
-  <div class="card" style="background: var(--amber-bg); border-left: 5px solid var(--amber); margin-bottom: 2rem;">
-    <div style="display: flex; gap: 1rem; align-items: center;">
-      <span style="font-size: 2.2rem;">⏳</span>
-      <div>
-        <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--amber-text); margin-bottom: 0.25rem;">
-          Akun Anda Sedang Dalam Proses Verifikasi
-        </h3>
-        <p style="color: var(--amber-text); font-size: 0.9rem; margin: 0;">
-          Pengurus sakristi sedang memverifikasi identitas Anda. Setelah disetujui, Anda akan dapat memilih jadwal tugas misa mandiri dan melakukan presensi digital.
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed text-xs font-semibold">
+            <span class="material-symbols-outlined text-[14px]">church</span>
+            <span><?= htmlspecialchars($user['asal_wilayah_teks'] ?: 'Paroki Purbowardayan') ?></span>
+          </span>
+
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-xs font-medium">
+            <span class="material-symbols-outlined text-[14px]">school</span>
+            <span>Jenjang <?= htmlspecialchars($user['jenjang'] ?: 'SMP') ?></span>
+          </span>
+        </div>
+
+        <h1 class="font-headline font-bold text-2xl sm:text-3xl text-primary tracking-tight">
+          Berkah Dalem, <?= htmlspecialchars($user['nama_panggilan'] ?: $user['nama_lengkap']) ?>! 🙏
+        </h1>
+        <p class="text-xs sm:text-sm text-on-surface-variant leading-relaxed">
+          Selamat melayani di altar suci Tuhan Yesus Kristus Paroki SPMR Purbowardayan. Silakan daftarkan jadwal tugas altar Anda untuk pekan ini.
         </p>
       </div>
-    </div>
-  </div>
-<?php endif; ?>
 
-<!-- ======================================================== -->
-<!-- HERO CARD: TUGAS AKTIF TERDEKAT                           -->
-<!-- ======================================================== -->
-<?php if ($active_duty): ?>
-  <div class="card" style="margin-bottom: 2rem; border-left: 6px solid var(--emerald); background: linear-gradient(135deg, rgba(0, 108, 76, 0.05) 0%, var(--surface) 100%);">
-    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1rem;">
-      <div>
-        <div style="margin-bottom: 0.4rem;">
-          <span class="badge badge-emerald">✨ Tugas Altar Terdekat Anda</span>
+      <!-- Quota Tracker Cards identik Next.js -->
+      <div class="flex flex-wrap sm:flex-nowrap items-center gap-3">
+        <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col gap-1 w-36">
+          <span class="text-[10px] text-on-surface-variant uppercase font-medium">Misa Harian</span>
+          <span class="font-headline font-bold text-base <?= $has_harian ? 'text-secondary' : 'text-emerald-700' ?>">
+            <?= $has_harian ? '1 / 1 (Terpakai)' : '0 / 1 (Tersedia)' ?>
+          </span>
         </div>
-        <h2 style="font-size: 1.45rem; font-weight: 800; color: var(--text-main);">
+        <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col gap-1 w-36">
+          <span class="text-[10px] text-on-surface-variant uppercase font-medium">Misa Mingguan</span>
+          <span class="font-headline font-bold text-base <?= $has_mingguan ? 'text-secondary' : 'text-emerald-700' ?>">
+            <?= $has_mingguan ? '1 / 1 (Terpakai)' : '0 / 1 (Tersedia)' ?>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Upcoming Active Duty Card (Jika User Memiliki Jadwal Tugas Aktif) -->
+  <?php if ($active_duty): 
+    $duty_warna_badge = match($active_duty['warna_liturgi']) {
+      'Putih' => 'badge-liturgi-putih',
+      'Merah' => 'badge-liturgi-merah',
+      'Ungu' => 'badge-liturgi-ungu',
+      'Merah Muda' => 'badge-liturgi-merah-muda',
+      default => 'badge-liturgi-hijau'
+    };
+    $st_duty = $active_duty['status_kehadiran'];
+    $st_duty_badge = match($st_duty) {
+      'hadir' => 'bg-emerald-100 text-emerald-800',
+      'terlambat' => 'bg-amber-100 text-amber-800',
+      'alpa' => 'bg-red-100 text-red-800',
+      default => 'bg-primary-fixed text-primary'
+    };
+  ?>
+  <section class="p-6 rounded-3xl bg-surface-container-lowest border-2 border-primary-fixed shadow-sm flex flex-col gap-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1">event_upcoming</span>
+        <h2 class="font-headline font-bold text-base text-primary">Tugas Altar Anda Mendatang</h2>
+      </div>
+      <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase <?= $st_duty_badge ?>">
+        <?= $st_duty ?>
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-2">
+          <span class="badge-pill <?= $duty_warna_badge ?> text-[10px]">
+            <?= $active_duty['warna_liturgi'] ?>
+          </span>
+          <span class="text-xs font-semibold text-secondary uppercase tracking-wider">
+            Misa <?= ucfirst($active_duty['kategori']) ?>
+          </span>
+        </div>
+        <h3 class="font-headline font-bold text-lg text-primary">
           <?= htmlspecialchars($active_duty['judul_misa']) ?>
-        </h2>
-      </div>
-
-      <div>
-        <?= get_attendance_badge($active_duty['status_kehadiran']) ?>
-      </div>
-    </div>
-
-    <!-- Info Detail Misa -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; background: var(--surface-low); padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
-      <div>
-        <div style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Hari & Tanggal</div>
-        <div style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-top: 2px;">
-          📅 <?= format_indo_date($active_duty['tanggal_misa']) ?>
+        </h3>
+        <div class="flex items-center gap-2 text-xs text-on-surface-variant">
+          <span>📅 <?= format_indo_date($active_duty['tanggal_misa']) ?></span>
+          <span>•</span>
+          <span class="font-bold text-on-surface">⏰ <?= substr($active_duty['jam_mulai'], 0, 5) ?> WIB</span>
+          <span>•</span>
+          <span>🛡️ Peran: <strong><?= htmlspecialchars($active_duty['posisi_tugas']) ?></strong></span>
         </div>
       </div>
 
-      <div>
-        <div style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Waktu Misa</div>
-        <div style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-top: 2px;">
-          ⏰ <?= format_indo_time($active_duty['jam_mulai']) ?>
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Posisi Tugas Liturgi</div>
-        <div style="font-size: 1rem; font-weight: 700; color: var(--primary); margin-top: 2px;">
-          🛡️ <?= htmlspecialchars($active_duty['posisi_tugas']) ?>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tombol Presensi & Status Action -->
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem;">
-      <div style="font-size: 0.85rem; color: var(--text-muted);">
-        ⏱️ Wajib hadir di sakristi paling lambat <strong>H-30 menit</strong> dengan jubah rapi.
-      </div>
-
-      <div style="display: flex; gap: 0.5rem;">
-        <?php if ($active_duty['status_kehadiran'] === 'terdaftar'): ?>
-          <button type="button" class="btn btn-primary" onclick="openCheckinModal(<?= $active_duty['id'] ?>, '<?= htmlspecialchars($active_duty['judul_misa']) ?>')">
-            📱 Presensi Digital / Masukkan Kode QR
+      <div class="flex items-center gap-2 self-start sm:self-auto">
+        <?php if ($st_duty === 'terdaftar'): ?>
+          <button
+            type="button"
+            onclick="openCheckinModal(<?= $active_duty['id'] ?>, '<?= htmlspecialchars($active_duty['judul_misa']) ?>', '<?= $active_duty['tanggal_misa'] ?>', '<?= substr($active_duty['jam_mulai'], 0, 5) ?>', '<?= htmlspecialchars($active_duty['posisi_tugas']) ?>')"
+            class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-headline font-bold hover:bg-primary-container transition-colors flex items-center gap-1.5 shadow-xs"
+          >
+            <span class="material-symbols-outlined text-sm">how_to_reg</span>
+            <span>Presensi Sakristi</span>
           </button>
+          <form method="POST" action="" onsubmit="return confirm('Apakah Anda yakin ingin membatalkan tugas misa ini?')">
+            <input type="hidden" name="action" value="cancel_booking">
+            <input type="hidden" name="booking_id" value="<?= $active_duty['id'] ?>">
+            <button type="submit" class="px-3 py-2 rounded-xl bg-surface-container-high hover:bg-error-container hover:text-error text-xs font-semibold transition-colors">
+              Batalkan
+            </button>
+          </form>
         <?php else: ?>
-          <button type="button" class="btn btn-secondary" disabled>
-            ✅ Presensi Sudah Tercatat (<?= ucfirst($active_duty['status_kehadiran']) ?>)
-          </button>
+          <span class="text-xs font-bold text-emerald-800 flex items-center gap-1">
+            <span class="material-symbols-outlined text-base">verified</span>
+            <span>Presensi Tercatat (<?= strtoupper($st_duty) ?>)</span>
+          </span>
         <?php endif; ?>
       </div>
     </div>
-  </div>
-<?php endif; ?>
+  </section>
+  <?php endif; ?>
 
-<!-- ======================================================== -->
-<!-- SECTION: JADWAL MISA TERBUKA & PENDAFTARAN TUGAS         -->
-<!-- ======================================================== -->
-<div style="margin-bottom: 2rem;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
-    <div>
-      <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-main);">
-        📅 Jadwal Misa Terbuka untuk Petugas
-      </h2>
-      <p style="color: var(--text-muted); font-size: 0.88rem;">
-        Pilih perayaan Ekaristi dan daftarkan diri Anda untuk melayani di meja altar Tuhan.
-      </p>
+  <!-- 3. Warta Sakristi Pinned Announcement Section -->
+  <?php if (!empty($recent_warta)): ?>
+  <section class="flex flex-col gap-3">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-secondary text-xl" style="font-variation-settings: 'FILL' 1">campaign</span>
+      <h2 class="font-headline font-bold text-base text-primary">Warta &amp; Pengumuman Sakristi</h2>
     </div>
-  </div>
 
-  <?php if (empty($open_schedules)): ?>
-    <div class="card" style="text-align: center; padding: 2.5rem 1rem; color: var(--text-muted);">
-      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⛪</div>
-      <p>Belum ada jadwal misa terbuka untuk pendaftaran saat ini.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <?php foreach ($recent_warta as $w): ?>
+      <div class="p-4 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col gap-2 hover:shadow-md transition-shadow">
+        <div class="flex items-center justify-between gap-2">
+          <?php if ($w['is_pinned']): ?>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-xs" style="font-variation-settings: 'FILL' 1">push_pin</span>
+              Pin
+            </span>
+          <?php endif; ?>
+          <span class="text-[10px] text-on-surface-variant font-medium ml-auto"><?= format_indo_date($w['created_at']) ?></span>
+        </div>
+        <h3 class="font-headline font-bold text-xs text-primary line-clamp-1"><?= htmlspecialchars($w['judul']) ?></h3>
+        <p class="text-[11px] text-on-surface-variant line-clamp-3 leading-relaxed"><?= htmlspecialchars($w['isi']) ?></p>
+      </div>
+      <?php endforeach; ?>
     </div>
-  <?php else: ?>
-    <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem;">
-      <?php foreach ($open_schedules as $s): ?>
-        <?php 
-          $isMyBooking = !empty($s['my_booking_id']);
-          $isFull = $s['terisi'] >= $s['kuota_maksimal'];
+  </section>
+  <?php endif; ?>
+
+  <!-- 4. Mass Schedule Browser identik Next.js -->
+  <section class="flex flex-col gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex flex-col">
+        <h2 class="font-headline font-bold text-xl text-primary">Daftar Jadwal Misa Tersedia</h2>
+        <p class="text-xs text-on-surface-variant">Pilih jadwal perayaan Ekaristi dan daftarkan peran pelayanan Anda.</p>
+      </div>
+
+      <!-- Segmented Buttons identik Next.js -->
+      <div class="inline-flex p-1 bg-surface-container rounded-2xl self-start sm:self-auto gap-1">
+        <a
+          href="?kat=semua"
+          class="px-3.5 py-1.5 rounded-xl text-xs font-headline transition-all <?= $kat_filter === 'semua' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"
+        >
+          Semua Jadwal
+        </a>
+        <a
+          href="?kat=harian"
+          class="px-3.5 py-1.5 rounded-xl text-xs font-headline transition-all <?= $kat_filter === 'harian' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"
+        >
+          Misa Harian
+        </a>
+        <a
+          href="?kat=mingguan"
+          class="px-3.5 py-1.5 rounded-xl text-xs font-headline transition-all <?= $kat_filter === 'mingguan' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"
+        >
+          Misa Mingguan
+        </a>
+      </div>
+    </div>
+
+    <?php if (empty($available_schedules)): ?>
+      <div class="p-16 rounded-3xl bg-surface-container-lowest border border-surface-container text-center flex flex-col items-center gap-3">
+        <span class="material-symbols-outlined text-4xl text-outline">calendar_today</span>
+        <h3 class="font-headline font-bold text-sm text-on-surface">Tidak ada jadwal misa</h3>
+        <p class="text-xs text-on-surface-variant">Belum ada jadwal misa yang dibuka untuk pendaftaran saat ini.</p>
+      </div>
+    <?php else: ?>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <?php foreach ($available_schedules as $s): 
+          $s_warna = match($s['warna_liturgi']) {
+            'Putih' => 'badge-liturgi-putih',
+            'Merah' => 'badge-liturgi-merah',
+            'Ungu' => 'badge-liturgi-ungu',
+            'Merah Muda' => 'badge-liturgi-merah-muda',
+            default => 'badge-liturgi-hijau'
+          };
+          $terisi = (int)$s['terisi'];
+          $kuota = (int)$s['kuota_maksimal'];
+          $persen = round(($terisi / max(1, $kuota)) * 100);
+          $is_full = ($terisi >= $kuota);
+          $my_status = $s['my_status'];
         ?>
-        <div class="card" style="display: flex; flex-direction: column; justify-content: space-between; border-left: 4px solid var(--primary);">
-          <div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-              <div>
-                <span class="badge <?= $s['kategori'] === 'harian' ? 'badge-blue' : 'badge-amber' ?>" style="font-size: 0.72rem; text-transform: uppercase;">
-                  <?= $s['kategori'] ?>
-                </span>
-              </div>
-              <span style="font-size: 0.8rem; font-weight: 600; color: <?= $isFull ? 'var(--error)' : 'var(--emerald)' ?>;">
-                <?= $s['terisi'] ?> / <?= $s['kuota_maksimal'] ?> Petugas
+        <div class="p-5 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col justify-between gap-4 hover:shadow-md transition-shadow">
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-semibold text-secondary uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary-fixed/50">
+                <?= $s['kategori'] === 'harian' ? 'Harian' : 'Mingguan' ?>
+              </span>
+              <span class="badge-pill <?= $s_warna ?> text-[10px]">
+                <?= $s['warna_liturgi'] ?>
               </span>
             </div>
 
-            <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--text-main);">
+            <h3 class="font-headline font-bold text-base text-primary line-clamp-1">
               <?= htmlspecialchars($s['judul_misa']) ?>
             </h3>
 
-            <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.25rem;">
-              <div>📅 <strong><?= format_indo_date($s['tanggal_misa']) ?></strong></div>
-              <div>⏰ Pukul <?= format_indo_time($s['jam_mulai']) ?></div>
+            <div class="flex flex-col gap-1 text-xs text-on-surface-variant">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm text-primary">calendar_month</span>
+                <span><?= format_indo_date($s['tanggal_misa']) ?></span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-sm text-secondary">schedule</span>
+                <span class="font-bold text-on-surface"><?= substr($s['jam_mulai'], 0, 5) ?> WIB</span>
+              </div>
+            </div>
+
+            <!-- Kuota Progress Bar -->
+            <div class="flex flex-col gap-1 pt-1">
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="text-on-surface-variant font-medium">Kapasitas Petugas:</span>
+                <span class="font-bold <?= $is_full ? 'text-error' : 'text-primary' ?>">
+                  <?= $terisi ?> / <?= $kuota ?>
+                </span>
+              </div>
+              <div class="w-full bg-surface-container-high rounded-full h-2 overflow-hidden">
+                <div class="bg-primary h-2 rounded-full" style="width: <?= min(100, $persen) ?>%;"></div>
+              </div>
             </div>
           </div>
 
-          <!-- Bagian Pendaftaran / Status -->
-          <div style="border-top: 1px solid var(--border-light); padding-top: 0.75rem;">
-            <?php if ($isMyBooking): ?>
-              <div style="background: var(--surface-low); padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <span style="font-size: 0.82rem; font-weight: 600; color: var(--emerald);">✅ Anda Terdaftar:</span>
-                  <?= get_attendance_badge($s['my_status']) ?>
-                </div>
-                <div style="font-size: 0.9rem; font-weight: 700; color: var(--text-main); margin-top: 2px;">
-                  Posisi: <?= htmlspecialchars($s['my_position']) ?>
-                </div>
+          <!-- Action Button -->
+          <div class="pt-2 border-t border-surface-container">
+            <?php if ($my_status): ?>
+              <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center flex items-center justify-center gap-1">
+                <span class="material-symbols-outlined text-sm">check_circle</span>
+                <span>Anda Terdaftar (<?= strtoupper($my_status) ?>)</span>
               </div>
-
-              <?php if ($s['my_status'] === 'terdaftar'): ?>
-                <div style="display: flex; gap: 0.5rem;">
-                  <button type="button" class="btn btn-primary btn-sm" style="flex: 1;" onclick="openCheckinModal(<?= $s['my_booking_id'] ?>, '<?= htmlspecialchars($s['judul_misa']) ?>')">
-                    📱 Presensi
-                  </button>
-                  <form method="POST" action="index.php" onsubmit="return confirm('Batalkan penugasan pada misa ini?');" style="margin: 0;">
-                    <input type="hidden" name="action" value="cancel_booking">
-                    <input type="hidden" name="booking_id" value="<?= $s['my_booking_id'] ?>">
-                    <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--error);" title="Batalkan Tugas">
-                      Batal
-                    </button>
-                  </form>
-                </div>
-              <?php endif; ?>
-
-            <?php elseif ($user['status'] === 'aktif'): ?>
-              <?php if ($isFull): ?>
-                <button type="button" class="btn btn-secondary btn-sm" style="width: 100%;" disabled>
-                  🔒 Kuota Penuh
-                </button>
-              <?php else: ?>
-                <!-- Form Booking Mandiri -->
-                <form method="POST" action="index.php" style="display: flex; gap: 0.4rem; align-items: center; margin: 0;">
-                  <input type="hidden" name="action" value="book_schedule">
-                  <input type="hidden" name="schedule_id" value="<?= $s['id'] ?>">
-
-                  <select name="posisi_tugas" class="form-select" style="font-size: 0.82rem; padding: 4px 8px; flex: 1;" required>
-                    <?php foreach (LITURGICAL_POSITIONS as $pos): ?>
-                      <option value="<?= $pos ?>"><?= $pos ?></option>
-                    <?php endforeach; ?>
-                  </select>
-
-                  <button type="submit" class="btn btn-primary btn-sm">
-                    Daftar Tugas
-                  </button>
-                </form>
-              <?php endif; ?>
-            <?php else: ?>
-              <button type="button" class="btn btn-secondary btn-sm" style="width: 100%;" disabled>
+            <?php elseif ($is_full): ?>
+              <button disabled class="w-full py-2.5 px-3 rounded-xl bg-surface-container text-outline text-xs font-bold cursor-not-allowed text-center">
+                Kuota Penuh
+              </button>
+            <?php elseif ($user['status'] !== 'aktif'): ?>
+              <button disabled class="w-full py-2.5 px-3 rounded-xl bg-surface-container text-amber-800 text-xs font-semibold cursor-not-allowed text-center">
                 Menunggu Verifikasi Akun
+              </button>
+            <?php else: ?>
+              <button
+                type="button"
+                onclick="openBookingModal(<?= $s['id'] ?>, '<?= htmlspecialchars($s['judul_misa']) ?>', '<?= format_indo_date($s['tanggal_misa']) ?>', '<?= substr($s['jam_mulai'], 0, 5) ?>')"
+                class="w-full py-2.5 px-3 rounded-xl bg-primary text-on-primary hover:bg-primary-container text-xs font-headline font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
+              >
+                <span class="material-symbols-outlined text-sm">edit_calendar</span>
+                <span>Daftar Tugas Altar</span>
               </button>
             <?php endif; ?>
           </div>
         </div>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-</div>
-
-<!-- ======================================================== -->
-<!-- SECTION: WARTA SAKRISTI TERBARU                          -->
-<!-- ======================================================== -->
-<div style="margin-bottom: 2rem;">
-  <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.75rem;">
-    📢 Warta Sakristi & Pengumuman Penting
-  </h2>
-
-  <?php if (empty($announcements)): ?>
-    <div class="card" style="text-align: center; padding: 2rem 1rem; color: var(--text-muted);">
-      Belum ada warta sakristi yang diterbitkan pengurus.
-    </div>
-  <?php else: ?>
-    <div style="display: flex; flex-direction: column; gap: 1rem;">
-      <?php foreach ($announcements as $w): ?>
-        <div class="card" style="<?= $w['is_pinned'] ? 'border-left: 5px solid var(--amber); background: linear-gradient(to right, rgba(255, 184, 107, 0.08), var(--surface));' : '' ?>">
-          <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-            <?php if ($w['is_pinned']): ?>
-              <span class="badge badge-amber">📌 Penting</span>
-            <?php endif; ?>
-            <span style="font-size: 0.8rem; color: var(--text-dim);">
-              <?= format_indo_date(date('Y-m-d', strtotime($w['created_at']))) ?>
-            </span>
-          </div>
-          <h3 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.4rem; color: var(--text-main);">
-            <?= htmlspecialchars($w['judul']) ?>
-          </h3>
-          <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.5; white-space: pre-line; margin: 0;">
-            <?= htmlspecialchars($w['isi']) ?>
-          </p>
-        </div>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-</div>
-
-<!-- ======================================================== -->
-<!-- MODAL: Check-in Presensi Digital                         -->
-<!-- ======================================================== -->
-<div class="modal" id="modal-checkin">
-  <div class="modal-card" style="max-width: 440px; text-align: center;">
-    <div class="modal-header">
-      <div class="modal-title">📱 Presensi Digital Sakristi</div>
-      <button type="button" class="btn-icon" onclick="closeModal('modal-checkin')">&times;</button>
-    </div>
-    <div class="modal-body" style="padding: 1.5rem 1rem;">
-      <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">⛪</div>
-      <h3 id="checkin-modal-misa-title" style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.25rem;">
-        Misa Kudus
-      </h3>
-      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">
-        Masukkan kode token presensi yang tertera pada layar stasiun presensi sakristi atau konfirmasi kehadiran Anda.
-      </p>
-
-      <input type="hidden" id="checkin-booking-id" value="">
-
-      <div style="margin-bottom: 1.25rem;">
-        <label class="form-label" style="text-align: left;">Kode Token Presensi / QR Token</label>
-        <input type="text" id="checkin-token-input" class="form-input" placeholder="Contoh: misa-1-..." style="text-align: center; font-size: 1rem; letter-spacing: 1px; font-family: monospace;">
-        <small style="color: var(--text-dim); font-size: 0.78rem; display: block; margin-top: 4px; text-align: left;">
-          *Petugas pengurus sakristi menampilkan kode ini di meja absensi.
-        </small>
+        <?php endforeach; ?>
       </div>
+    <?php endif; ?>
+  </section>
+</div>
 
-      <div id="checkin-alert-box" style="display: none; padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 1rem; font-size: 0.88rem;"></div>
-
-      <button type="button" id="btn-submit-checkin" class="btn btn-primary" style="width: 100%;" onclick="submitCheckin()">
-        ✅ Kirim Presensi Sekarang
+<!-- Modal Booking Mandiri -->
+<div id="modal-book-schedule" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
+    <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-xl">event_available</span>
+        <h3 class="font-headline font-bold text-base text-primary">Konfirmasi Pendaftaran Tugas</h3>
+      </div>
+      <button type="button" onclick="closeModal('modal-book-schedule')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+        <span class="material-symbols-outlined text-lg">close</span>
       </button>
     </div>
-    <div class="modal-footer" style="justify-content: center;">
-      <button type="button" class="btn btn-secondary" onclick="closeModal('modal-checkin')">Tutup</button>
+
+    <form method="POST" action="" class="p-5 flex flex-col gap-4 text-xs">
+      <input type="hidden" name="action" value="book_schedule">
+      <input type="hidden" name="schedule_id" id="book-schedule-id" value="">
+
+      <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col gap-1">
+        <span class="text-[10px] text-on-surface-variant uppercase font-medium">Jadwal Terpilih</span>
+        <div id="book-modal-title" class="font-headline font-bold text-sm text-primary">--</div>
+        <div id="book-modal-time" class="text-[11px] text-on-surface-variant">--</div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-on-surface-variant mb-1">Pilih Peran Liturgi Altar *</label>
+        <select name="posisi_tugas" required class="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <?php foreach ($liturgical_positions as $pos): ?>
+            <option value="<?= $pos ?>"><?= $pos ?></option>
+          <?php endforeach; ?>
+        </select>
+        <span class="text-[11px] text-on-surface-variant mt-1 block">
+          *Pastikan hadir paling lambat H-30 menit di sakristi dalam kondisi rapi.
+        </span>
+      </div>
+
+      <div class="p-3 border-t border-surface-container mt-2 flex justify-end gap-2">
+        <button type="button" onclick="closeModal('modal-book-schedule')" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface font-semibold">Batal</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-primary text-on-primary font-bold hover:bg-primary-container transition-colors">Daftar Sekarang</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Presensi Sakristi Digital -->
+<div id="modal-checkin" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
+    <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-xl">qr_code_scanner</span>
+        <h3 class="font-headline font-bold text-base text-primary">Presensi Sakristi Misdinar</h3>
+      </div>
+      <button type="button" onclick="closeModal('modal-checkin')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+
+    <div class="p-5 flex flex-col gap-4 text-xs text-center items-center">
+      <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container w-full text-left">
+        <div id="checkin-title" class="font-bold text-sm text-primary">--</div>
+        <div id="checkin-time" class="text-[11px] text-on-surface-variant">--</div>
+        <div id="checkin-peran" class="text-[11px] font-semibold text-secondary mt-1">--</div>
+      </div>
+
+      <div class="p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md my-1">
+        <img id="checkin-qr-img" src="" alt="QR Presensi" class="w-40 h-40 object-contain mx-auto">
+      </div>
+
+      <p class="text-[11px] text-on-surface-variant">
+        Tunjukkan QR Code ini ke scanner sakristi, atau klik tombol presensi langsung di bawah jika berada di gereja.
+      </p>
+
+      <form method="POST" action="<?= $base ?>/api/checkin.php" id="direct-checkin-form" class="w-full">
+        <input type="hidden" name="booking_id" id="checkin-booking-id" value="">
+        <button
+          type="button"
+          onclick="submitDirectCheckin()"
+          class="w-full py-3 px-4 rounded-xl font-headline font-bold text-xs bg-primary text-on-primary hover:bg-primary-container shadow-md transition-all flex items-center justify-center gap-2"
+        >
+          <span class="material-symbols-outlined text-lg">how_to_reg</span>
+          <span>Presensi Sakristi Sekarang</span>
+        </button>
+      </form>
+    </div>
+
+    <div class="p-3 border-t border-surface-container bg-surface-container-low flex justify-end">
+      <button type="button" onclick="closeModal('modal-checkin')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-surface-container-high text-on-surface">Tutup</button>
     </div>
   </div>
 </div>
 
 <script>
-function openCheckinModal(bookingId, misaTitle) {
-  document.getElementById('checkin-booking-id').value = bookingId;
-  document.getElementById('checkin-modal-misa-title').innerText = misaTitle;
-  document.getElementById('checkin-token-input').value = '';
-  document.getElementById('checkin-alert-box').style.display = 'none';
-  openModal('modal-checkin');
-}
-
-function submitCheckin() {
-  const bookingId = document.getElementById('checkin-booking-id').value;
-  const token = document.getElementById('checkin-token-input').value.trim();
-  const alertBox = document.getElementById('checkin-alert-box');
-  const btn = document.getElementById('btn-submit-checkin');
-
-  if (!bookingId) {
-    alert('ID Penugasan tidak valid.');
-    return;
+  function openBookingModal(id, title, date, time) {
+    document.getElementById('book-schedule-id').value = id;
+    document.getElementById('book-modal-title').innerText = title;
+    document.getElementById('book-modal-time').innerText = date + ' • ' + time + ' WIB';
+    openModal('modal-book-schedule');
   }
 
-  btn.disabled = true;
-  btn.innerText = 'Memproses...';
+  function openCheckinModal(bookingId, title, date, time, peran) {
+    document.getElementById('checkin-booking-id').value = bookingId;
+    document.getElementById('checkin-title').innerText = title;
+    document.getElementById('checkin-time').innerText = date + ' • ' + time + ' WIB';
+    document.getElementById('checkin-peran').innerText = 'Peran: ' + peran;
+    
+    // QR generator URL
+    const qrPayload = 'SIDINAR:' + bookingId + ':<?= $user['id'] ?>:' + date;
+    document.getElementById('checkin-qr-img').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=5&data=' + encodeURIComponent(qrPayload);
+    
+    openModal('modal-checkin');
+  }
 
-  const formData = new URLSearchParams();
-  formData.append('booking_id', bookingId);
-  formData.append('qr_token', token);
+  function submitDirectCheckin() {
+    const bookingId = document.getElementById('checkin-booking-id').value;
+    const formData = new FormData();
+    formData.append('booking_id', bookingId);
 
-  fetch(getApiUrl('checkin.php'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: formData.toString()
-  })
-  .then(res => res.json())
-  .then(data => {
-    btn.disabled = false;
-    btn.innerText = '✅ Kirim Presensi Sekarang';
-
-    if (data.success) {
-      playNotificationChime();
-      alertBox.className = 'alert alert-success';
-      alertBox.style.display = 'block';
-      alertBox.innerHTML = `<strong>Berhasil!</strong> ${data.message}`;
-
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-    } else {
-      alertBox.className = 'alert alert-error';
-      alertBox.style.display = 'block';
-      alertBox.innerHTML = `<strong>Gagal:</strong> ${data.error || 'Terjadi kesalahan sistem'}`;
-    }
-  })
-  .catch(err => {
-    btn.disabled = false;
-    btn.innerText = '✅ Kirim Presensi Sekarang';
-    alertBox.className = 'alert alert-error';
-    alertBox.style.display = 'block';
-    alertBox.innerHTML = 'Gagal menghubungi server.';
-  });
-}
+    fetch('<?= $base ?>/api/checkin.php', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        alert(data.message || 'Presensi Sakristi Berhasil!');
+        location.reload();
+      } else {
+        alert(data.error || 'Gagal melakukan presensi.');
+      }
+    })
+    .catch(() => {
+      alert('Terjadi kesalahan jaringan.');
+    });
+  }
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

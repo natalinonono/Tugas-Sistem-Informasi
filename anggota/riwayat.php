@@ -2,6 +2,7 @@
 /**
  * Riwayat Tugas & Rekap Kehadiran Misdinar (Anggota)
  * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
+ * Desain & UI Identik 100% dengan Next.js Dashboard
  */
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -11,7 +12,7 @@ require_login();
 $user = current_user();
 $pdo = get_db();
 
-// Auto-update status pendaftaran yang telah melewati batas toleransi menjadi alpa
+// Auto-update status pendaftaran yang telah melewati batas toleransi (+45 menit setelah misa selesai) menjadi alpa
 auto_update_expired_attendance($pdo);
 
 // Filter Parameter
@@ -31,6 +32,8 @@ if ($status_filter === 'hadir') {
     $sql .= " AND b.status_kehadiran = 'terlambat'";
 } elseif ($status_filter === 'izin') {
     $sql .= " AND b.status_kehadiran = 'izin'";
+} elseif ($status_filter === 'alpa') {
+    $sql .= " AND b.status_kehadiran = 'alpa'";
 }
 
 $sql .= " ORDER BY s.tanggal_misa DESC, s.jam_mulai DESC";
@@ -40,7 +43,6 @@ $stmt->execute($params);
 $history = $stmt->fetchAll();
 
 // Hitung Statistik Pribadi
-$total_tugas = count($history);
 $total_hadir = 0;
 $total_terlambat = 0;
 $total_izin = 0;
@@ -65,109 +67,180 @@ $page_title = 'Riwayat Tugas Altar';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
-<div style="margin-bottom: 1.5rem;">
-  <h1 style="font-size: 1.6rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem;">
-    📜 Riwayat Pelayanan Altar Saya
-  </h1>
-  <p style="color: var(--text-muted); font-size: 0.95rem;">
-    Pantau rekapitulasi kehadiran tugas misa dan catatan presensi sakristi Anda.
-  </p>
-</div>
+<div class="flex flex-col gap-6">
+  <!-- Page Header Identik Next.js -->
+  <div class="flex flex-col gap-1">
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-xl" style="font-variation-settings: 'FILL' 1;">
+        history_edu
+      </span>
+      <span class="text-xs uppercase font-bold text-secondary tracking-wider">
+        Rekapitulasi Pelayanan
+      </span>
+    </div>
+    <h1 class="font-headline font-bold text-2xl text-primary tracking-tight">
+      Riwayat Tugas &amp; Presensi Altar
+    </h1>
+    <p class="text-xs text-on-surface-variant">
+      Catatan seluruh perayaan Ekaristi yang telah Anda layani di Paroki SPMR Purbowardayan.
+    </p>
+  </div>
 
-<!-- Stats Grid Pribadi -->
-<div class="stats-grid" style="margin-bottom: 1.5rem;">
-  <div class="stat-card">
-    <div class="stat-icon" style="background: var(--primary-container); color: var(--primary);">🛡️</div>
-    <div class="stat-info">
-      <div class="stat-value"><?= $all_count ?></div>
-      <div class="stat-label">Total Penugasan</div>
+  <!-- Stats Grid Cards Identik Next.js Dashboard -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Card 1: Total Penugasan -->
+    <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Total Penugasan</span>
+        <div class="font-headline font-bold text-2xl text-primary"><?= $all_count ?></div>
+        <span class="text-[11px] text-on-surface-variant">Tercatat di sistem</span>
+      </div>
+      <div class="w-12 h-12 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">military_tech</span>
+      </div>
+    </div>
+
+    <!-- Card 2: Tepat Waktu -->
+    <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Tepat Waktu</span>
+        <div class="font-headline font-bold text-2xl text-emerald-700"><?= $total_hadir ?></div>
+        <span class="text-[11px] text-emerald-600 font-medium">Hadir sebelum misa</span>
+      </div>
+      <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">check_circle</span>
+      </div>
+    </div>
+
+    <!-- Card 3: Terlambat / Izin -->
+    <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Terlambat / Alpa</span>
+        <div class="font-headline font-bold text-2xl text-amber-700"><?= $total_terlambat + $total_alpa ?></div>
+        <span class="text-[11px] text-amber-600 font-medium"><?= $total_terlambat ?> terlambat, <?= $total_alpa ?> alpa</span>
+      </div>
+      <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">warning</span>
+      </div>
+    </div>
+
+    <!-- Card 4: Persentase Kehadiran -->
+    <div class="p-4 sm:p-5 rounded-2xl bg-surface-container-lowest border border-surface-container shadow-sm flex items-center justify-between">
+      <div>
+        <span class="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider block mb-1">Kehadiran</span>
+        <div class="font-headline font-bold text-2xl text-primary"><?= $persen_kehadiran ?>%</div>
+        <span class="text-[11px] text-on-surface-variant">Rasio keaktifan tugas</span>
+      </div>
+      <div class="w-12 h-12 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">analytics</span>
+      </div>
     </div>
   </div>
 
-  <div class="stat-card">
-    <div class="stat-icon" style="background: var(--emerald-bg); color: var(--emerald-text);">✅</div>
-    <div class="stat-info">
-      <div class="stat-value" style="color: var(--emerald);"><?= $total_hadir ?></div>
-      <div class="stat-label">Tepat Waktu</div>
-    </div>
+  <!-- Filter Status Segmented Buttons Identik Next.js -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-1">
+    <a href="riwayat.php?status=semua" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'semua' ? 'bg-primary text-on-primary shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
+      Semua Riwayat (<?= $all_count ?>)
+    </a>
+    <a href="riwayat.php?status=hadir" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'hadir' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
+      Hadir Tepat Waktu (<?= $total_hadir ?>)
+    </a>
+    <a href="riwayat.php?status=terlambat" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'terlambat' ? 'bg-amber-600 text-white shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
+      Terlambat (<?= $total_terlambat ?>)
+    </a>
+    <a href="riwayat.php?status=izin" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'izin' ? 'bg-blue-600 text-white shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
+      Izin (<?= $total_izin ?>)
+    </a>
+    <a href="riwayat.php?status=alpa" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'alpa' ? 'bg-rose-600 text-white shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
+      Alpa (<?= $total_alpa ?>)
+    </a>
   </div>
 
-  <div class="stat-card">
-    <div class="stat-icon" style="background: var(--amber-bg); color: var(--amber-text);">⚠️</div>
-    <div class="stat-info">
-      <div class="stat-value" style="color: var(--amber);"><?= $total_terlambat ?></div>
-      <div class="stat-label">Terlambat</div>
-    </div>
-  </div>
-
-  <div class="stat-card">
-    <div class="stat-icon" style="background: var(--surface-high); color: var(--primary);">📊</div>
-    <div class="stat-info">
-      <div class="stat-value"><?= $persen_kehadiran ?>%</div>
-      <div class="stat-label">Tingkat Kehadiran</div>
-    </div>
-  </div>
-</div>
-
-<!-- Filter Status -->
-<div class="card" style="margin-bottom: 1.5rem; padding: 0.75rem 1.25rem;">
-  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
-    <span style="font-weight: 600; font-size: 0.88rem; color: var(--text-muted);">Filter Kehadiran:</span>
-    <a href="riwayat.php?status=semua" class="btn btn-sm <?= $status_filter === 'semua' ? 'btn-primary' : 'btn-secondary' ?>">Semua Riwayat</a>
-    <a href="riwayat.php?status=hadir" class="btn btn-sm <?= $status_filter === 'hadir' ? 'btn-primary' : 'btn-secondary' ?>">Hadir Tepat Waktu</a>
-    <a href="riwayat.php?status=terlambat" class="btn btn-sm <?= $status_filter === 'terlambat' ? 'btn-primary' : 'btn-secondary' ?>">Terlambat</a>
-    <a href="riwayat.php?status=izin" class="btn btn-sm <?= $status_filter === 'izin' ? 'btn-primary' : 'btn-secondary' ?>">Izin</a>
-  </div>
-</div>
-
-<!-- Tabel Riwayat -->
-<div class="card">
+  <!-- Tabel Riwayat Tugas Identik Next.js -->
   <?php if (empty($history)): ?>
-    <div style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
-      <div style="font-size: 3rem; margin-bottom: 0.5rem;">📜</div>
-      <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.25rem;">Belum Ada Riwayat Tugas</h3>
-      <p style="margin-bottom: 1rem;">Anda belum memiliki riwayat tugas yang tercatat dengan filter ini.</p>
-      <a href="index.php" class="btn btn-primary btn-sm">Daftar Jadwal Tugas Misa</a>
+    <div class="p-12 rounded-3xl bg-surface-container-lowest border border-surface-container text-center flex flex-col items-center gap-3">
+      <span class="material-symbols-outlined text-4xl text-outline">receipt_long</span>
+      <h3 class="font-headline font-bold text-base text-primary">Belum Ada Riwayat Tugas</h3>
+      <p class="text-xs text-on-surface-variant max-w-sm">
+        Anda belum memiliki catatan riwayat tugas pelayanan untuk kategori filter ini.
+      </p>
+      <a href="index.php" class="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs">
+        <span class="material-symbols-outlined text-sm">calendar_month</span>
+        Pilih Jadwal Tugas Misa
+      </a>
     </div>
   <?php else: ?>
-    <div class="table-responsive">
-      <table class="table">
-        <thead>
+    <div class="overflow-x-auto rounded-2xl bg-surface-container-lowest border border-surface-container shadow-sm">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-surface-container-low text-on-surface-variant uppercase tracking-wider font-semibold border-b border-surface-container">
           <tr>
-            <th style="width: 35px;">No</th>
-            <th>Perayaan Misa</th>
-            <th>Waktu & Tanggal</th>
-            <th>Posisi Liturgi</th>
-            <th>Status Kehadiran</th>
-            <th>Waktu Presensi</th>
+            <th class="py-3.5 px-4">Jadwal Misa</th>
+            <th class="py-3.5 px-4">Tanggal &amp; Waktu</th>
+            <th class="py-3.5 px-4">Posisi Liturgi</th>
+            <th class="py-3.5 px-4">Status Kehadiran</th>
+            <th class="py-3.5 px-4">Waktu Presensi</th>
           </tr>
         </thead>
-        <tbody>
-          <?php $no = 1; foreach ($history as $h): ?>
-            <tr>
-              <td><?= $no++ ?></td>
-              <td>
-                <div>
-                  <strong style="font-size: 0.95rem; color: var(--text-main);"><?= htmlspecialchars($h['judul_misa']) ?></strong>
+        <tbody class="divide-y divide-surface-container">
+          <?php foreach ($history as $h): ?>
+            <tr class="hover:bg-surface-container-low/50 transition-colors">
+              <td class="py-3.5 px-4">
+                <div class="font-bold text-primary font-headline text-sm">
+                  <?= htmlspecialchars($h['judul_misa']) ?>
+                </div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span class="inline-block w-2 h-2 rounded-full <?= get_liturgy_bg_class($h['warna_liturgi'] ?? 'Hijau') ?>"></span>
+                  <span class="text-[11px] text-on-surface-variant">
+                    <?= htmlspecialchars($h['warna_liturgi'] ?? 'Hijau') ?> &bull; <?= htmlspecialchars($h['kategori']) ?>
+                  </span>
                 </div>
               </td>
-              <td>
-                <div>📅 <?= format_indo_date($h['tanggal_misa']) ?></div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">⏰ <?= format_indo_time($h['jam_mulai']) ?></div>
+              <td class="py-3.5 px-4 font-mono">
+                <div class="font-bold text-on-surface"><?= format_indo_date($h['tanggal_misa']) ?></div>
+                <div class="text-[11px] text-on-surface-variant font-sans">
+                  Pukul <?= substr($h['jam_mulai'], 0, 5) ?> WIB
+                </div>
               </td>
-              <td>
-                <span class="badge badge-light" style="font-weight: 600;">
-                  <?= htmlspecialchars($h['posisi_tugas']) ?>
+              <td class="py-3.5 px-4">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-surface-container text-primary border border-surface-container-high">
+                  <span class="material-symbols-outlined text-[13px]">person</span>
+                  <?= htmlspecialchars($h['posisi_tugas'] ?? 'Petugas Altar') ?>
                 </span>
               </td>
-              <td>
-                <?= get_attendance_badge($h['status_kehadiran']) ?>
-              </td>
-              <td style="font-size: 0.85rem; color: var(--text-muted);">
-                <?php if ($h['waktu_checkin']): ?>
-                  <?= date('d/m/Y H:i:s', strtotime($h['waktu_checkin'])) ?> WIB
+              <td class="py-3.5 px-4">
+                <?php
+                  $st = $h['status_kehadiran'];
+                  if ($st === 'hadir'):
+                ?>
+                  <span class="inline-block font-bold text-[11px] uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                    Hadir Tepat Waktu
+                  </span>
+                <?php elseif ($st === 'terlambat'): ?>
+                  <span class="inline-block font-bold text-[11px] uppercase px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                    Terlambat
+                  </span>
+                <?php elseif ($st === 'izin'): ?>
+                  <span class="inline-block font-bold text-[11px] uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                    Izin Sakristi
+                  </span>
+                <?php elseif ($st === 'alpa'): ?>
+                  <span class="inline-block font-bold text-[11px] uppercase px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                    Alpa (Tidak Hadir)
+                  </span>
                 <?php else: ?>
-                  <em>Belum check-in</em>
+                  <span class="inline-block font-bold text-[11px] uppercase px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant">
+                    Terdaftar
+                  </span>
+                <?php endif; ?>
+              </td>
+              <td class="py-3.5 px-4 font-mono text-on-surface-variant">
+                <?php if ($h['waktu_checkin']): ?>
+                  <div class="flex items-center gap-1 text-emerald-700 font-semibold">
+                    <span class="material-symbols-outlined text-xs">schedule</span>
+                    <?= date('d/m/Y H:i:s', strtotime($h['waktu_checkin'])) ?> WIB
+                  </div>
+                <?php else: ?>
+                  <span class="text-on-surface-variant/70 italic text-[11px]">- Belum check-in -</span>
                 <?php endif; ?>
               </td>
             </tr>
