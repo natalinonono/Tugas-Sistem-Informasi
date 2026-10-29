@@ -1,19 +1,28 @@
 <?php
 /**
- * Konfigurasi Database PDO Multi-Driver (MySQL Primary + SQLite Fallback)
+ * Konfigurasi Database PDO Multi-Driver (MySQL Primary + Cloud Fallback + SQLite Fallback)
  * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
  */
 
-// 1. Parsing DATABASE_URL jika diberikan oleh Cloud Hosting (Vercel/Railway/TiDB)
+require_once __DIR__ . '/supabase.php';
+
+// 1. Parsing DATABASE_URL jika diberikan oleh Cloud Hosting (Vercel/Railway/TiDB/Supabase)
 $dbUrl = getenv('DATABASE_URL') ?: getenv('MYSQL_URL');
 $parsedUrl = $dbUrl ? parse_url($dbUrl) : [];
 
-// Konfigurasi MySQL (Prioritas: DATABASE_URL -> Variabel DB_* -> Default TiDB Cloud Serverless)
-define('DB_HOST', $parsedUrl['host'] ?? (getenv('DB_HOST') ?: 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com'));
-define('DB_PORT', (string)($parsedUrl['port'] ?? (getenv('DB_PORT') ?: '4000')));
-define('DB_USER', $parsedUrl['user'] ?? (getenv('DB_USER') ?: '4Sv9mvyvExsfxAK.root'));
-define('DB_PASS', isset($parsedUrl['pass']) ? $parsedUrl['pass'] : (getenv('DB_PASS') !== false && getenv('DB_PASS') !== '' ? (string)getenv('DB_PASS') : '8JaIzgstp8JbvfKm'));
-define('DB_NAME', isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : (getenv('DB_NAME') ?: 'test'));
+// Konfigurasi MySQL Lokal XAMPP (Prioritas Utama untuk Praktikum / Tugas)
+define('DB_HOST', $parsedUrl['host'] ?? (getenv('DB_HOST') ?: '127.0.0.1'));
+define('DB_PORT', (string)($parsedUrl['port'] ?? (getenv('DB_PORT') ?: '3306')));
+define('DB_USER', $parsedUrl['user'] ?? (getenv('DB_USER') ?: 'root'));
+define('DB_PASS', isset($parsedUrl['pass']) ? $parsedUrl['pass'] : (getenv('DB_PASS') !== false && getenv('DB_PASS') !== null ? (string)getenv('DB_PASS') : ''));
+define('DB_NAME', isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : (getenv('DB_NAME') ?: 'sidinar_db'));
+
+// Konfigurasi Cloud Fallback (TiDB Cloud Serverless jika MySQL lokal mati)
+define('CLOUD_DB_HOST', 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com');
+define('CLOUD_DB_PORT', '4000');
+define('CLOUD_DB_USER', '4Sv9mvyvExsfxAK.root');
+define('CLOUD_DB_PASS', '8JaIzgstp8JbvfKm');
+define('CLOUD_DB_NAME', 'test');
 
 // File SQLite lokal (fallback darurat jika belum terhubung ke cloud/MySQL)
 $sqlitePath = getenv('VERCEL') ? '/tmp/sidinar.sqlite' : (__DIR__ . '/../database/sidinar.sqlite');
@@ -25,16 +34,45 @@ function get_db(): PDO {
         return $pdo;
     }
 
-    $isRemote = DB_HOST !== 'localhost' && DB_HOST !== '127.0.0.1';
-
     $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
     ];
 
-    // Aktifkan SSL jika host adalah Cloud Remote (TiDB, Aiven, Railway, dll.)
-    if ($isRemote) {
+    // 1. Coba koneksi ke MySQL Lokal (XAMPP / Server Lokal)
+    try {
+        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+
+        // Verifikasi apakah tabel sudah terbentuk di database lokal
+        try {
+            $pdo->query("SELECT 1 FROM profiles LIMIT 1");
+        } catch (Exception $notExist) {
+            init_mysql_tables($pdo);
+        }
+
+        return $pdo;
+    } catch (PDOException $e) {
+        // Jika database belum ada di MySQL lokal, coba create otomatis
+        if (DB_HOST === '127.0.0.1' || DB_HOST === 'localhost') {
+            try {
+                $dsnInit = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
+                $tmpPdo = new PDO($dsnInit, DB_USER, DB_PASS, $options);
+                $tmpPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
+                $tmpPdo->exec("USE `" . DB_NAME . "`;");
+                init_mysql_tables($tmpPdo);
+                $pdo = $tmpPdo;
+                return $pdo;
+            } catch (Exception $e2) {
+                // Lanjut ke fallback cloud jika MySQL lokal mati
+            }
+        }
+    }
+
+    // 2. Coba koneksi ke Cloud MySQL Fallback (TiDB)
+    try {
+        $cloudOptions = $options;
         $caPaths = [
             __DIR__ . '/cacert.pem',
             ini_get('openssl.cafile'),
@@ -46,21 +84,17 @@ function get_db(): PDO {
         ];
         foreach ($caPaths as $path) {
             if (!empty($path) && file_exists($path)) {
-                $options[PDO::MYSQL_ATTR_SSL_CA] = $path;
+                $cloudOptions[PDO::MYSQL_ATTR_SSL_CA] = $path;
                 break;
             }
         }
         if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
-            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            $cloudOptions[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
         }
-    }
 
-    // 1. Coba koneksi ke database MySQL / Cloud
-    try {
-        $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
-        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        $cloudDsn = "mysql:host=" . CLOUD_DB_HOST . ";port=" . CLOUD_DB_PORT . ";dbname=" . CLOUD_DB_NAME . ";charset=utf8mb4";
+        $pdo = new PDO($cloudDsn, CLOUD_DB_USER, CLOUD_DB_PASS, $cloudOptions);
 
-        // Verifikasi apakah tabel sudah terbentuk di cloud database
         try {
             $pdo->query("SELECT 1 FROM profiles LIMIT 1");
         } catch (Exception $notExist) {
@@ -68,24 +102,11 @@ function get_db(): PDO {
         }
 
         return $pdo;
-    } catch (PDOException $e) {
-        // Coba koneksi ke server MySQL tanpa dbname untuk auto-create database (hanya berlaku jika localhost)
-        if (!$isRemote) {
-            try {
-                $dsnInit = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";charset=utf8mb4";
-                $tmpPdo = new PDO($dsnInit, DB_USER, DB_PASS, $options);
-                $tmpPdo->exec("CREATE DATABASE IF NOT EXISTS `" . DB_NAME . "` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-                $tmpPdo->exec("USE `" . DB_NAME . "`;");
-                init_mysql_tables($tmpPdo);
-                $pdo = $tmpPdo;
-                return $pdo;
-            } catch (Exception $e2) {
-                // Lanjut ke fallback SQLite
-            }
-        }
+    } catch (Exception $cloudEx) {
+        // Lanjut ke SQLite
     }
 
-    // 2. Fallback Otomatis ke SQLite
+    // 3. Fallback Terakhir ke SQLite Lokal
     try {
         $dbDir = dirname(SQLITE_FILE);
         if (!is_dir($dbDir)) {
