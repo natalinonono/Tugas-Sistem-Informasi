@@ -23,10 +23,10 @@ if (file_exists($envFile)) {
     }
 }
 
-// Konfigurasi Project Supabase Khusus PHP Native
-define('SUPABASE_URL', getenv('SUPABASE_URL') ?: 'https://tkclthikptiotudrtkty.supabase.co');
-define('SUPABASE_ANON_KEY', getenv('SUPABASE_ANON_KEY') ?: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrY2x0aGlrcHRpb3R1ZHJ0a3R5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5MzkzNTAsImV4cCI6MjEwODUxNTM1MH0.HXH8eXnwMAPb_ParcZQoniGQUdag3Faurouv-p3qInA');
-define('SUPABASE_SERVICE_ROLE_KEY', getenv('SUPABASE_SERVICE_ROLE_KEY') ?: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrY2x0aGlrcHRpb3R1ZHJ0a3R5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MjkzOTM1MCwiZXhwIjoyMTA4NTE1MzUwfQ.YAHlzeD2hhoEVxPaXxvWM3jS-uiHPGXXE2vb1oD0joA');
+// Konfigurasi Project Supabase Khusus PHP Native (sidinar-pro)
+define('SUPABASE_URL', getenv('SUPABASE_URL') ?: 'https://lestwehpmtlvynoylyey.supabase.co');
+define('SUPABASE_ANON_KEY', getenv('SUPABASE_ANON_KEY') ?: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxlc3R3ZWhwbXRsdnlub3lseWV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMTU1NDUsImV4cCI6MjEwODc5MTU0NX0.LwLO38G3HyIhsSrq3mDmYsLH9oPb-w71IrMGQZcM17I');
+define('SUPABASE_SERVICE_ROLE_KEY', getenv('SUPABASE_SERVICE_ROLE_KEY') ?: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxlc3R3ZWhwbXRsdnlub3lseWV5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMyMTU1NDUsImV4cCI6MjEwODc5MTU0NX0.LwLO38G3HyIhsSrq3mDmYsLH9oPb-w71IrMGQZcM17I');
 
 class SupabaseClient {
 

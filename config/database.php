@@ -19,7 +19,7 @@ define('DB_NAME', isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : (g
 
 // Konfigurasi Supabase PostgreSQL (Direct / Session Pooler)
 // Isi SUPABASE_DB_PASS dengan password database Supabase Anda untuk mengaktifkan koneksi langsung
-define('SUPABASE_DB_HOST', getenv('SUPABASE_DB_HOST') ?: 'db.tkclthikptiotudrtkty.supabase.co');
+define('SUPABASE_DB_HOST', getenv('SUPABASE_DB_HOST') ?: 'db.lestwehpmtlvynoylyey.supabase.co');
 define('SUPABASE_DB_PORT', (string)(getenv('SUPABASE_DB_PORT') ?: '5432'));
 define('SUPABASE_DB_NAME', getenv('SUPABASE_DB_NAME') ?: 'postgres');
 define('SUPABASE_DB_USER', getenv('SUPABASE_DB_USER') ?: 'postgres');
