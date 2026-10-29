@@ -115,3 +115,4 @@ SELECT setval('profiles_id_seq', (SELECT MAX(id) FROM public.profiles));
 SELECT setval('mass_schedules_id_seq', (SELECT MAX(id) FROM public.mass_schedules));
 SELECT setval('bookings_id_seq', (SELECT MAX(id) FROM public.bookings));
 SELECT setval('announcements_id_seq', (SELECT MAX(id) FROM public.announcements));
+
