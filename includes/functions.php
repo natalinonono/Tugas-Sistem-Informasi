@@ -124,16 +124,22 @@ function generate_whatsapp_reminder_link(array $schedule, array $member): array 
 /**
  * Evaluasi status checkin berdasarkan waktu:
  * - Sebelum H-20 menit: 'hadir' (tepat waktu)
- * - Antara H-20 menit s/d masa tugas + toleransi (120 menit / 2 jam setelah jam mulai misa): 'terlambat'
- * - Melewati batas toleransi (45 menit pasca misa / 120 menit setelah jam mulai): 'alpa'
- * Contoh: Misa Kamis jam 05:30 -> Toleransi s/d 07:30. Lewat dari 07:30 otomatis 'alpa'.
+ * - Antara H-20 menit s/d batas toleransi: 'terlambat'
+ * - Melewati batas toleransi (45 menit pasca misa): 'alpa'
+ *
+ * Durasi misa & batas cut-off:
+ * - Harian: Durasi maks 30 menit + 45 menit toleransi = 75 menit dari jam mulai misa.
+ *   (Contoh: Misa 05:30 -> Cutoff tepat 06:45 WIB. Lewat 06:45 otomatis ALPA).
+ * - Mingguan: Durasi maks 75 menit (1 jam 15 menit) + 45 menit toleransi = 120 menit (2 jam) dari jam mulai misa.
+ *   (Contoh: Misa 17:00 -> Cutoff tepat 19:00 WIB. Lewat 19:00 otomatis ALPA).
  */
-function evaluate_checkin_status(string $tanggal_misa, string $jam_mulai): string {
+function evaluate_checkin_status(string $tanggal_misa, string $jam_mulai, string $kategori = 'mingguan'): string {
     $now = time();
     $massTimestamp = strtotime("$tanggal_misa $jam_mulai");
 
-    // Batas toleransi akhir: durasi misa (~75 menit) + 45 menit toleransi = 120 menit (2 jam)
-    $limitToleransiAkhir = $massTimestamp + (120 * 60);
+    $isHarian = (strtolower($kategori) === 'harian');
+    $toleranceMinutes = $isHarian ? 75 : 120; // 30m+45m vs 75m+45m
+    $limitToleransiAkhir = $massTimestamp + ($toleranceMinutes * 60);
 
     // Batas tepat waktu: H-20 menit
     $limitTepatWaktu = $massTimestamp - (20 * 60);
@@ -148,20 +154,24 @@ function evaluate_checkin_status(string $tanggal_misa, string $jam_mulai): strin
 }
 
 /**
- * Cek apakah jadwal misa telah melewati batas toleransi presensi (+45 menit setelah perkiraan misa selesai = 120m).
- * Contoh: Misa 05:30 -> Cutoff tepat pukul 07:30 WIB.
+ * Cek apakah jadwal misa telah melewati batas toleransi presensi (+45 menit setelah perkiraan misa selesai).
+ * - Harian: 30 menit misa + 45 menit toleransi = 75 menit dari jam mulai. (Contoh: Misa 05:30 -> Cutoff 06:45 WIB).
+ * - Mingguan: 75 menit misa + 45 menit toleransi = 120 menit dari jam mulai. (Contoh: Misa 05:30 -> Cutoff 07:30 WIB).
  */
-function is_mass_tolerance_expired(string $tanggal_misa, string $jam_mulai): bool {
+function is_mass_tolerance_expired(string $tanggal_misa, string $jam_mulai, string $kategori = 'mingguan'): bool {
     $now = time();
     $massTimestamp = strtotime("$tanggal_misa $jam_mulai");
-    $limitToleransiAkhir = $massTimestamp + (120 * 60);
+    $isHarian = (strtolower($kategori) === 'harian');
+    $toleranceMinutes = $isHarian ? 75 : 120;
+    $limitToleransiAkhir = $massTimestamp + ($toleranceMinutes * 60);
     return $now > $limitToleransiAkhir;
 }
 
 /**
  * Otomatis update seluruh pendaftaran yang belum absen ('terdaftar') menjadi 'alpa'
- * jika waktu sekarang sudah melewati batas toleransi tugas misa (120 menit setelah jam mulai).
- * Contoh: Misa 05:30 WIB -> Lewat 07:30 WIB langsung otomatis ALPA.
+ * jika waktu sekarang sudah melewati batas toleransi tugas misa (+45 menit setelah misa selesai):
+ * - Harian (30m + 45m = 75m): Misa 05:30 WIB -> Lewat 06:45 WIB langsung otomatis ALPA.
+ * - Mingguan (75m + 45m = 120m): Misa 05:30 WIB -> Lewat 07:30 WIB langsung otomatis ALPA.
  */
 function auto_update_expired_attendance(PDO $pdo): int {
     try {
@@ -175,10 +185,11 @@ function auto_update_expired_attendance(PDO $pdo): int {
                 WHERE status_kehadiran = 'terdaftar' 
                   AND schedule_id IN (
                       SELECT id FROM mass_schedules 
-                      WHERE datetime(tanggal_misa || ' ' || jam_mulai, '+120 minutes') < ?
+                      WHERE (kategori = 'harian' AND datetime(tanggal_misa || ' ' || jam_mulai, '+75 minutes') < ?)
+                         OR (kategori != 'harian' AND datetime(tanggal_misa || ' ' || jam_mulai, '+120 minutes') < ?)
                   )
             ");
-            $stmt->execute([$nowWib]);
+            $stmt->execute([$nowWib, $nowWib]);
             return $stmt->rowCount();
         } elseif ($driver === 'pgsql') {
             $stmt = $pdo->prepare("
@@ -187,9 +198,13 @@ function auto_update_expired_attendance(PDO $pdo): int {
                 FROM public.mass_schedules s
                 WHERE b.schedule_id = s.id
                   AND b.status_kehadiran = 'terdaftar'
-                  AND (s.tanggal_misa + s.jam_mulai + interval '120 minutes') < ?::timestamp
+                  AND (
+                      (s.kategori = 'harian' AND (s.tanggal_misa + s.jam_mulai + interval '75 minutes') < ?::timestamp)
+                      OR
+                      (s.kategori != 'harian' AND (s.tanggal_misa + s.jam_mulai + interval '120 minutes') < ?::timestamp)
+                  )
             ");
-            $stmt->execute([$nowWib]);
+            $stmt->execute([$nowWib, $nowWib]);
             return $stmt->rowCount();
         } else {
             // MySQL / MariaDB
@@ -198,9 +213,13 @@ function auto_update_expired_attendance(PDO $pdo): int {
                 JOIN mass_schedules s ON b.schedule_id = s.id
                 SET b.status_kehadiran = 'alpa'
                 WHERE b.status_kehadiran = 'terdaftar'
-                  AND DATE_ADD(TIMESTAMP(s.tanggal_misa, s.jam_mulai), INTERVAL 120 MINUTE) < ?
+                  AND (
+                      (s.kategori = 'harian' AND DATE_ADD(TIMESTAMP(s.tanggal_misa, s.jam_mulai), INTERVAL 75 MINUTE) < ?)
+                      OR
+                      (s.kategori != 'harian' AND DATE_ADD(TIMESTAMP(s.tanggal_misa, s.jam_mulai), INTERVAL 120 MINUTE) < ?)
+                  )
             ");
-            $stmt->execute([$nowWib]);
+            $stmt->execute([$nowWib, $nowWib]);
             return $stmt->rowCount();
         }
     } catch (Exception $e) {

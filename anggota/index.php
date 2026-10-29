@@ -143,16 +143,6 @@ $sch_stmt = $pdo->prepare($sch_sql);
 $sch_stmt->execute($sch_params);
 $available_schedules = $sch_stmt->fetchAll();
 
-$liturgical_positions = [
-    'Petugas Altar',
-    'Thurifer (Dupa)',
-    'Navis (Wadah Dupa)',
-    'Krusifer (Salib)',
-    'Akolit Lilin 1',
-    'Akolit Lilin 2',
-    'Petugas Lektor Altar'
-];
-
 $page_title = 'Beranda Misdinar';
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -221,7 +211,7 @@ require_once __DIR__ . '/../includes/header.php';
       default => 'badge-liturgi-hijau'
     };
     $st_duty = $active_duty['status_kehadiran'];
-    $is_expired_duty = is_mass_tolerance_expired($active_duty['tanggal_misa'], $active_duty['jam_mulai']);
+    $is_expired_duty = is_mass_tolerance_expired($active_duty['tanggal_misa'], $active_duty['jam_mulai'], $active_duty['kategori'] ?? 'mingguan');
     if ($st_duty === 'terdaftar' && $is_expired_duty) {
       $st_duty = 'alpa';
     }

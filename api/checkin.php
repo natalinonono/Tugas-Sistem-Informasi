@@ -29,7 +29,7 @@ try {
 
     // Ambil booking beserta jadwal
     $stmt = $pdo->prepare("
-        SELECT b.*, s.judul_misa, s.tanggal_misa, s.jam_mulai, s.qr_token AS valid_qr_token
+        SELECT b.*, s.judul_misa, s.tanggal_misa, s.jam_mulai, s.kategori, s.qr_token AS valid_qr_token
         FROM bookings b
         JOIN mass_schedules s ON b.schedule_id = s.id
         WHERE b.id = ?
@@ -69,7 +69,7 @@ try {
     }
 
     // Evaluasi waktu checkin (Tepat Waktu vs Terlambat vs Alpa)
-    $status = evaluate_checkin_status($booking['tanggal_misa'], $booking['jam_mulai']);
+    $status = evaluate_checkin_status($booking['tanggal_misa'], $booking['jam_mulai'], $booking['kategori'] ?? 'mingguan');
     $waktu_checkin = date('Y-m-d H:i:s');
 
     if ($status === 'alpa') {

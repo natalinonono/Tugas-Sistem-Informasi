@@ -161,16 +161,6 @@ if ($selected_id) {
 $membersStmt = $pdo->query("SELECT id, nama_lengkap, nama_panggilan, asal_wilayah_teks FROM profiles WHERE role = 'anggota' AND status = 'aktif' ORDER BY nama_lengkap ASC");
 $active_members = $membersStmt->fetchAll();
 
-$liturgical_positions = [
-    'Petugas Altar',
-    'Thurifer (Dupa)',
-    'Navis (Wadah Dupa)',
-    'Krusifer (Salib)',
-    'Akolit Lilin 1',
-    'Akolit Lilin 2',
-    'Petugas Lektor Altar'
-];
-
 $page_title = 'Kelola Jadwal Misa & Petugas';
 require_once __DIR__ . '/../includes/header.php';
 ?>
