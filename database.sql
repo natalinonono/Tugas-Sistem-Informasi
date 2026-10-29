@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS `profiles` (
   `asal_wilayah_teks` VARCHAR(255) NOT NULL,
   `jenjang` ENUM('SD', 'SMP', 'SMA/K', 'Mahasiswa', 'Umum') NOT NULL DEFAULT 'SMA/K',
   `role` ENUM('anggota', 'pengurus') NOT NULL DEFAULT 'anggota',
-  `status` ENUM('pending', 'aktif', 'nonaktif') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending', 'aktif', 'nonaktif') NOT NULL DEFAULT 'aktif',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS `announcements` (
 INSERT INTO `profiles` (`id`, `email`, `password`, `nama_lengkap`, `nama_panggilan`, `no_telepon`, `asal_wilayah_teks`, `jenjang`, `role`, `status`) VALUES
 (1, 'pengurus@sidinar.org', '$2y$10$rlcRkXHQJWbezY1XmPHXKu0WARiAcs/r5JQHtUme4fvhIlUMpjIUS', 'Pengurus Sakristi SPMR', 'Admin', '085643985341', 'Jebres, Wilayah St. Ignatius', 'Umum', 'pengurus', 'aktif'),
 (2, 'misdinar@sidinar.org', '$2y$10$rlcRkXHQJWbezY1XmPHXKu0WARiAcs/r5JQHtUme4fvhIlUMpjIUS', 'Stefanus Natalino Putra Pratama', 'Inok', '081228788912', 'Jebres Barat, C2 Santa Rosa De Lima', 'SMA/K', 'anggota', 'aktif'),
-(3, 'calon@sidinar.org', '$2y$10$rlcRkXHQJWbezY1XmPHXKu0WARiAcs/r5JQHtUme4fvhIlUMpjIUS', 'Yohanes Pembaptis', 'Yohan', '081399887766', 'Kentingan, St. Yohanes', 'SMP', 'anggota', 'pending')
+(3, 'calon@sidinar.org', '$2y$10$rlcRkXHQJWbezY1XmPHXKu0WARiAcs/r5JQHtUme4fvhIlUMpjIUS', 'Yohanes Pembaptis', 'Yohan', '081399887766', 'Kentingan, St. Yohanes', 'SMP', 'anggota', 'aktif')
 ON DUPLICATE KEY UPDATE `id`=`id`;
 
 INSERT INTO `mass_schedules` (`id`, `judul_misa`, `kategori`, `tanggal_misa`, `jam_mulai`, `kuota_maksimal`, `minggu_ke`, `tahun`, `tahun_liturgi`, `warna_liturgi`, `nama_selebran`, `qr_token`) VALUES

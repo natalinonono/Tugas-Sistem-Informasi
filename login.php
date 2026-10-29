@@ -36,9 +36,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
 
         if ($isValid) {
+            // Auto-aktifkan akun jika sebelumnya berstatus pending agar bisa langsung login
             if ($user['status'] === 'pending') {
-                $error = 'Akun Anda (' . htmlspecialchars($user['nama_lengkap']) . ') masih berstatus PENDING. Harap menunggu verifikasi persetujuan dari Pengurus Sakristi.';
-            } elseif ($user['status'] === 'nonaktif') {
+                $pdo->prepare("UPDATE profiles SET status = 'aktif' WHERE id = ?")->execute([$user['id']]);
+                $user['status'] = 'aktif';
+            }
+
+            if ($user['status'] === 'nonaktif') {
                 $error = 'Akun Anda dinonaktifkan oleh pengurus. Hubungi sakristi untuk informasi lebih lanjut.';
             } else {
                 unset($user['password']);
@@ -205,8 +209,8 @@ require_once __DIR__ . '/includes/header.php';
 
         <!-- Footer link ke Register -->
         <div class="text-center text-xs text-on-surface-variant pt-1 border-t border-surface-container">
-          Belum terdaftar sebagai misdinar?{' '}
-          <a href="<?= $base ?>/register.php" class="font-bold text-primary hover:underline">
+          Belum terdaftar sebagai misdinar?
+          <a href="<?= $base ?>/register.php" class="font-bold text-primary hover:underline ml-1">
             Daftar Anggota Baru &rarr;
           </a>
         </div>

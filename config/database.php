@@ -133,7 +133,7 @@ function init_sqlite_tables(PDO $pdo): void {
             asal_wilayah_teks TEXT NOT NULL,
             jenjang TEXT NOT NULL DEFAULT 'SMA/K',
             role TEXT NOT NULL DEFAULT 'anggota',
-            status TEXT NOT NULL DEFAULT 'pending',
+            status TEXT NOT NULL DEFAULT 'aktif',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
@@ -188,7 +188,7 @@ function init_sqlite_tables(PDO $pdo): void {
     $stmt = $pdo->prepare("INSERT OR IGNORE INTO profiles (id, email, password, nama_lengkap, nama_panggilan, no_telepon, asal_wilayah_teks, jenjang, role, status) VALUES 
         (1, 'pengurus@sidinar.org', ?, 'Pengurus Sakristi SPMR', 'Admin', '085643985341', 'Jebres, Wilayah St. Ignatius', 'Umum', 'pengurus', 'aktif'),
         (2, 'misdinar@sidinar.org', ?, 'Stefanus Natalino Putra Pratama', 'Inok', '081228788912', 'Jebres Barat, C2 Santa Rosa De Lima', 'SMA/K', 'anggota', 'aktif'),
-        (3, 'calon@sidinar.org', ?, 'Yohanes Pembaptis', 'Yohan', '081399887766', 'Kentingan, St. Yohanes', 'SMP', 'anggota', 'pending')");
+        (3, 'calon@sidinar.org', ?, 'Yohanes Pembaptis', 'Yohan', '081399887766', 'Kentingan, St. Yohanes', 'SMP', 'anggota', 'aktif')");
     $stmt->execute([$hash, $hash, $hash]);
 
     // Seed Jadwal Misa

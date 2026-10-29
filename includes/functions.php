@@ -51,8 +51,30 @@ function format_indo_time(string $time): string {
     return substr($time, 0, 5) . ' WIB';
 }
 
-function get_liturgical_badge(string $warna = ''): string {
-    return '';
+function get_liturgy_bg_class(string $warna = 'Hijau'): string {
+    $warna = strtolower(trim($warna));
+    return match($warna) {
+        'putih' => 'bg-slate-300 border border-slate-400',
+        'merah' => 'bg-rose-500',
+        'ungu' => 'bg-purple-600',
+        'merah muda' => 'bg-pink-400',
+        default => 'bg-emerald-500',
+    };
+}
+
+function get_liturgical_badge(string $warna = 'Hijau'): string {
+    $wLower = strtolower(trim($warna));
+    $classes = match($wLower) {
+        'putih' => 'bg-slate-100 text-slate-800 border-slate-300',
+        'merah' => 'bg-rose-100 text-rose-800 border-rose-300',
+        'ungu' => 'bg-purple-100 text-purple-800 border-purple-300',
+        'merah muda' => 'bg-pink-100 text-pink-800 border-pink-300',
+        default => 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    };
+    return '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ' . $classes . '">'
+         . '<span class="w-1.5 h-1.5 rounded-full ' . get_liturgy_bg_class($warna) . '"></span>'
+         . htmlspecialchars(ucfirst($warna))
+         . '</span>';
 }
 
 function get_attendance_badge(string $status): string {

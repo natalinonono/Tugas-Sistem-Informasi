@@ -55,7 +55,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     }
 }
 
-$status_filter = $_GET['status'] ?? 'pending';
+$status_filter = $_GET['status'] ?? 'aktif';
 $search = trim($_GET['q'] ?? '');
 
 $sql = "SELECT * FROM profiles WHERE 1=1";
@@ -85,7 +85,7 @@ $cntAktif = (int)$pdo->query("SELECT COUNT(*) FROM profiles WHERE status = 'akti
 $cntNonaktif = (int)$pdo->query("SELECT COUNT(*) FROM profiles WHERE status = 'nonaktif'")->fetchColumn();
 $cntSemua = (int)$pdo->query("SELECT COUNT(*) FROM profiles")->fetchColumn();
 
-$page_title = 'Verifikasi & Direktori Anggota';
+$page_title = 'Direktori & Master Data Anggota';
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
@@ -102,24 +102,15 @@ require_once __DIR__ . '/../includes/header.php';
         </span>
       </div>
       <h1 class="font-headline font-bold text-2xl text-primary tracking-tight">
-        Verifikasi &amp; Direktori Anggota
+        Direktori Anggota Misdinar
       </h1>
       <p class="text-xs text-on-surface-variant">
-        Persetujuan pendaftaran akun baru dan pengelolaan status keanggotaan misdinar.
+        Daftar seluruh putra-putri altar, informasi kontak, dan pengelolaan status keaktifan sakristi.
       </p>
     </div>
 
     <!-- Filter Segmented Control identik Next.js -->
     <div class="inline-flex p-1 bg-surface-container rounded-2xl self-start sm:self-auto gap-1">
-      <a
-        href="?status=pending"
-        class="px-3 py-1.5 rounded-xl text-xs font-headline transition-all flex items-center gap-1.5 <?= $status_filter === 'pending' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"
-      >
-        <span>Pending Approval</span>
-        <?php if ($cntPending > 0): ?>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white"><?= $cntPending ?></span>
-        <?php endif; ?>
-      </a>
       <a
         href="?status=aktif"
         class="px-3 py-1.5 rounded-xl text-xs font-headline transition-all <?= $status_filter === 'aktif' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"
@@ -132,6 +123,15 @@ require_once __DIR__ . '/../includes/header.php';
       >
         Semua (<?= $cntSemua ?>)
       </a>
+      <?php if ($cntPending > 0): ?>
+      <a
+        href="?status=pending"
+        class="px-3 py-1.5 rounded-xl text-xs font-headline transition-all flex items-center gap-1.5 <?= $status_filter === 'pending' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"
+      >
+        <span>Pending</span>
+        <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white"><?= $cntPending ?></span>
+      </a>
+      <?php endif; ?>
       <a
         href="?status=nonaktif"
         class="px-3 py-1.5 rounded-xl text-xs font-headline transition-all <?= $status_filter === 'nonaktif' ? 'bg-surface-container-lowest text-primary font-bold shadow-xs' : 'text-on-surface-variant hover:text-primary' ?>"

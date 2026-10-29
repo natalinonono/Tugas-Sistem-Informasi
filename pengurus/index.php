@@ -15,6 +15,7 @@ $today = date('Y-m-d');
 // 1. Statistik
 $countAnggota = (int)$pdo->query("SELECT COUNT(*) FROM profiles WHERE role = 'anggota' AND status = 'aktif'")->fetchColumn();
 $countPending = (int)$pdo->query("SELECT COUNT(*) FROM profiles WHERE status = 'pending'")->fetchColumn();
+$countSchedules = (int)$pdo->query("SELECT COUNT(*) FROM mass_schedules WHERE tanggal_misa >= '$today'")->fetchColumn();
 
 // Total Tugas Terdaftar Pekan Ini
 $current_week = (int)date('W');
@@ -159,18 +160,18 @@ require_once __DIR__ . '/../includes/header.php';
 
       <!-- KPI 2 -->
       <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container flex items-center gap-3.5">
-        <div class="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-700 shrink-0">
-          <span class="material-symbols-outlined text-2xl">pending_actions</span>
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary shrink-0">
+          <span class="material-symbols-outlined text-2xl">event_available</span>
         </div>
         <div class="flex flex-col">
           <span class="text-[11px] uppercase tracking-wider text-on-surface-variant font-medium">
-            Verifikasi Pending
+            Jadwal Misa Aktif
           </span>
-          <span class="font-headline font-bold text-xl text-amber-700">
-            <?= $countPending ?>
+          <span class="font-headline font-bold text-xl text-primary">
+            <?= $countSchedules ?>
           </span>
-          <a href="anggota.php" class="text-[10px] text-primary font-semibold hover:underline">
-            Lihat &amp; Setujui &rarr;
+          <a href="jadwal.php" class="text-[10px] text-primary font-semibold hover:underline">
+            Kelola Jadwal &rarr;
           </a>
         </div>
       </div>

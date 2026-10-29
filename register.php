@@ -46,11 +46,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $insert = $pdo->prepare("
                 INSERT INTO profiles 
                 (email, password, nama_lengkap, nama_panggilan, no_telepon, asal_wilayah_teks, jenjang, role, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'anggota', 'pending')
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'anggota', 'aktif')
             ");
             $insert->execute([$email, $hash, $nama_lengkap, $nama_panggilan, $no_telepon, $asal_wilayah, $jenjang]);
 
-            set_flash('success', 'Pendaftaran berhasil! Akun Anda telah disimpan dan menunggu persetujuan (approval) dari Pengurus Sakristi.');
+            set_flash('success', 'Pendaftaran berhasil! Akun Anda langsung aktif. Silakan masuk menggunakan email dan kata sandi Anda.');
             header('Location: login.php');
             exit;
         }
@@ -266,13 +266,13 @@ require_once __DIR__ . '/includes/header.php';
             class="w-full py-3 px-4 rounded-xl font-headline font-bold text-xs bg-primary text-on-primary hover:bg-primary-container shadow-md transition-all flex items-center justify-center gap-2 mt-2"
           >
             <span class="material-symbols-outlined text-lg">app_registration</span>
-            <span>Kirim Pendaftaran Anggota</span>
+            <span>Daftar &amp; Aktifkan Akun</span>
           </button>
         </form>
 
         <div class="text-center text-xs text-on-surface-variant border-t border-surface-container pt-3">
-          Sudah punya akun misdinar?{' '}
-          <a href="<?= $base ?>/login.php" class="font-bold text-primary hover:underline">
+          Sudah punya akun misdinar?
+          <a href="<?= $base ?>/login.php" class="font-bold text-primary hover:underline ml-1">
             Masuk Sekarang &rarr;
           </a>
         </div>

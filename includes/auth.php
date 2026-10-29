@@ -5,7 +5,10 @@
  */
 
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+    if (php_sapi_name() === 'cli') {
+        @ini_set('session.save_path', sys_get_temp_dir());
+    }
+    @session_start();
 }
 
 require_once __DIR__ . '/../config/database.php';
