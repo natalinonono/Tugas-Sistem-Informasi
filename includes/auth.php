@@ -4,6 +4,8 @@
  * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
  */
 
+date_default_timezone_set('Asia/Jakarta');
+
 if (session_status() === PHP_SESSION_NONE) {
     if (php_sapi_name() === 'cli') {
         @ini_set('session.save_path', sys_get_temp_dir());

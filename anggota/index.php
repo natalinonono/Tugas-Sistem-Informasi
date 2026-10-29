@@ -221,6 +221,11 @@ require_once __DIR__ . '/../includes/header.php';
       default => 'badge-liturgi-hijau'
     };
     $st_duty = $active_duty['status_kehadiran'];
+    $is_expired_duty = is_mass_tolerance_expired($active_duty['tanggal_misa'], $active_duty['jam_mulai']);
+    if ($st_duty === 'terdaftar' && $is_expired_duty) {
+      $st_duty = 'alpa';
+    }
+
     $st_duty_badge = match($st_duty) {
       'hadir' => 'bg-emerald-100 text-emerald-800',
       'terlambat' => 'bg-amber-100 text-amber-800',
@@ -260,10 +265,10 @@ require_once __DIR__ . '/../includes/header.php';
       </div>
 
       <div class="flex items-center gap-2 self-start sm:self-auto">
-        <?php if ($st_duty === 'terdaftar'): ?>
+        <?php if ($st_duty === 'terdaftar' && !$is_expired_duty): ?>
           <button
             type="button"
-            onclick="openCheckinModal(<?= $active_duty['id'] ?>, '<?= htmlspecialchars($active_duty['judul_misa']) ?>', '<?= $active_duty['tanggal_misa'] ?>', '<?= substr($active_duty['jam_mulai'], 0, 5) ?>', '<?= htmlspecialchars($active_duty['posisi_tugas']) ?>')"
+            onclick="openCheckinModal(<?= $active_duty['id'] ?>, '<?= htmlspecialchars($active_duty['judul_misa']) ?>', '<?= $active_duty['tanggal_misa'] ?>', '<?= substr($active_duty['jam_mulai'], 0, 5) ?>')"
             class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-headline font-bold hover:bg-primary-container transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <span class="material-symbols-outlined text-sm">how_to_reg</span>
@@ -276,6 +281,11 @@ require_once __DIR__ . '/../includes/header.php';
               Batalkan
             </button>
           </form>
+        <?php elseif ($st_duty === 'alpa' || $is_expired_duty): ?>
+          <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-100 text-rose-800 text-xs font-bold border border-rose-200">
+            <span class="material-symbols-outlined text-sm">warning</span>
+            <span>Batas Toleransi Berakhir (Status: ALPA)</span>
+          </span>
         <?php else: ?>
           <span class="text-xs font-bold text-emerald-800 flex items-center gap-1">
             <span class="material-symbols-outlined text-base">verified</span>

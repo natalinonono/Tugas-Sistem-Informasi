@@ -4,6 +4,9 @@
  * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
  */
 
+// Pastikan zona waktu selalu Indonesia Barat (WIB / Asia/Jakarta)
+date_default_timezone_set('Asia/Jakarta');
+
 const LITURGICAL_POSITIONS = [
     'Petugas Altar',
     'Akolit (Pembawa Lilin)',
@@ -123,7 +126,7 @@ function generate_whatsapp_reminder_link(array $schedule, array $member): array 
  * - Sebelum H-20 menit: 'hadir' (tepat waktu)
  * - Antara H-20 menit s/d masa tugas + toleransi (120 menit / 2 jam setelah jam mulai misa): 'terlambat'
  * - Melewati batas toleransi (45 menit pasca misa / 120 menit setelah jam mulai): 'alpa'
- * Contoh: Misa 05:30 -> Toleransi s/d 07:30. Lewat dari 07:30 otomatis 'alpa'.
+ * Contoh: Misa Kamis jam 05:30 -> Toleransi s/d 07:30. Lewat dari 07:30 otomatis 'alpa'.
  */
 function evaluate_checkin_status(string $tanggal_misa, string $jam_mulai): string {
     $now = time();
@@ -145,12 +148,26 @@ function evaluate_checkin_status(string $tanggal_misa, string $jam_mulai): strin
 }
 
 /**
+ * Cek apakah jadwal misa telah melewati batas toleransi presensi (+45 menit setelah perkiraan misa selesai = 120m).
+ * Contoh: Misa 05:30 -> Cutoff tepat pukul 07:30 WIB.
+ */
+function is_mass_tolerance_expired(string $tanggal_misa, string $jam_mulai): bool {
+    $now = time();
+    $massTimestamp = strtotime("$tanggal_misa $jam_mulai");
+    $limitToleransiAkhir = $massTimestamp + (120 * 60);
+    return $now > $limitToleransiAkhir;
+}
+
+/**
  * Otomatis update seluruh pendaftaran yang belum absen ('terdaftar') menjadi 'alpa'
  * jika waktu sekarang sudah melewati batas toleransi tugas misa (120 menit setelah jam mulai).
+ * Contoh: Misa 05:30 WIB -> Lewat 07:30 WIB langsung otomatis ALPA.
  */
 function auto_update_expired_attendance(PDO $pdo): int {
     try {
+        $nowWib = date('Y-m-d H:i:s');
         $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
         if ($driver === 'sqlite') {
             $stmt = $pdo->prepare("
                 UPDATE bookings 
@@ -158,10 +175,21 @@ function auto_update_expired_attendance(PDO $pdo): int {
                 WHERE status_kehadiran = 'terdaftar' 
                   AND schedule_id IN (
                       SELECT id FROM mass_schedules 
-                      WHERE datetime(tanggal_misa || ' ' || jam_mulai, '+120 minutes') < datetime('now', 'localtime')
+                      WHERE datetime(tanggal_misa || ' ' || jam_mulai, '+120 minutes') < ?
                   )
             ");
-            $stmt->execute();
+            $stmt->execute([$nowWib]);
+            return $stmt->rowCount();
+        } elseif ($driver === 'pgsql') {
+            $stmt = $pdo->prepare("
+                UPDATE public.bookings b
+                SET status_kehadiran = 'alpa'
+                FROM public.mass_schedules s
+                WHERE b.schedule_id = s.id
+                  AND b.status_kehadiran = 'terdaftar'
+                  AND (s.tanggal_misa + s.jam_mulai + interval '120 minutes') < ?::timestamp
+            ");
+            $stmt->execute([$nowWib]);
             return $stmt->rowCount();
         } else {
             // MySQL / MariaDB
@@ -170,9 +198,9 @@ function auto_update_expired_attendance(PDO $pdo): int {
                 JOIN mass_schedules s ON b.schedule_id = s.id
                 SET b.status_kehadiran = 'alpa'
                 WHERE b.status_kehadiran = 'terdaftar'
-                  AND TIMESTAMP(s.tanggal_misa, s.jam_mulai) < DATE_SUB(NOW(), INTERVAL 120 MINUTE)
+                  AND DATE_ADD(TIMESTAMP(s.tanggal_misa, s.jam_mulai), INTERVAL 120 MINUTE) < ?
             ");
-            $stmt->execute();
+            $stmt->execute([$nowWib]);
             return $stmt->rowCount();
         }
     } catch (Exception $e) {

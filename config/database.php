@@ -4,6 +4,8 @@
  * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
  */
 
+date_default_timezone_set('Asia/Jakarta');
+
 require_once __DIR__ . '/supabase.php';
 
 // 1. Parsing DATABASE_URL jika diberikan oleh Cloud Hosting (Vercel/Railway/Supabase)
