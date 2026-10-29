@@ -1,39 +1,73 @@
-# ⚡ Panduan Integrasi Supabase untuk PHP Native (SiDinar Regina)
+# ⚡ Panduan Setup Project Supabase Baru (Khusus PHP Native)
 
-Dokumen ini menjelaskan cara menghubungkan aplikasi **PHP Native** ke basis data **Supabase** (`https://tkclthikptiotudrtkty.supabase.co`), menggantikan konfigurasi TiDB Cloud lama secara penuh.
-
----
-
-## 📌 Dua Metode Menghubungkan PHP ke Supabase
-
-Supabase menyediakan dua metode akses:
-1. **Metode 1: Supabase REST API (Direkomendasikan - 100% Siap Pakai Tanpa Install Apapun)**
-2. **Metode 2: Direct PostgreSQL Connection via PDO (Menggunakan PostgreSQL Driver)**
+Sesuai arsitektur sistem, **Project PHP Native** menggunakan project Supabase tersendiri (terpisah dari project Supabase Web Next.js & Android).
 
 ---
 
-## 🚀 Metode 1: Lewat Supabase REST API (Paling Praktis)
-Metode ini menggunakan HTTPS cURL standar yang sudah aktif di semua versi PHP XAMPP tanpa perlu mengaktifkan ekstensi PostgreSQL tambahan.
+## 🛠️ Langkah-Langkah Membuat Project Supabase Baru (1-2 Menit)
 
-Modul ini sudah terpasang di:
-📂 **`config/supabase.php`**
+### Langkah 1: Buat Project Baru di Supabase
+1. Buka browser dan login ke: **[https://supabase.com/dashboard](https://supabase.com/dashboard)**.
+2. Klik tombol **New Project**.
+3. Isi informasi project:
+   - **Name**: `sidinar-php-native` (atau nama lain yang kamu suka).
+   - **Database Password**: Masukkan password yang kuat dan catat password ini.
+   - **Region**: Pilih yang paling dekat, misalnya **Singapore (`ap-southeast-1`)**.
+4. Klik **Create new project** dan tunggu sekitar 1-2 menit hingga proses inisialisasi selesai.
 
-### Contoh Penggunaan di File PHP:
+---
+
+### Langkah 2: Buat Tabel & Data Awal (Sekali Klik)
+1. Di sidebar kiri project Supabase baru kamu, klik menu **SQL Editor** (ikon terminal/lembaran SQL).
+2. Klik tombol **New Query**.
+3. Buka file **`supabase_schema.sql`** yang ada di folder `php_native/`, copy semua isinya, lalu paste ke SQL Editor Supabase.
+4. Klik tombol **Run** (atau tekan `Ctrl + Enter`).
+5. Selesai! Semua tabel (`profiles`, `mass_schedules`, `bookings`, `announcements`), Row Level Security (RLS), dan data akun demo langsung terbuat otomatis.
+
+---
+
+### Langkah 3: Ambil Kredensial API Project Baru
+1. Masuk ke menu **Project Settings** (ikon gerigi ⚙️ di pojok kiri bawah) > **API**.
+2. Salin 3 nilai berikut:
+   - **Project URL**: `https://xxxxxxxxxxxxxxxx.supabase.co`
+   - **Project API Keys (anon / public)**: `eyJhbGciOi...`
+   - **Project API Keys (service_role / secret)**: `eyJhbGciOi...`
+
+---
+
+### Langkah 4: Masukkan Kredensial ke PHP Native
+Buat file bernama **`.env`** di dalam folder `php_native/` (atau copy dari `.env.example`), lalu isi dengan kredensial project baru kamu:
+
+```env
+# Konfigurasi Supabase Khusus PHP Native
+SUPABASE_URL=https://xxxxxxxxxxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOi...
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...
+
+# (Opsional) Jika ingin koneksi direct PDO PostgreSQL
+SUPABASE_DB_HOST=db.xxxxxxxxxxxxxxxx.supabase.co
+SUPABASE_DB_PORT=5432
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_USER=postgres
+SUPABASE_DB_PASS=PASSWORD_DATABASE_YANG_KAMU_BUAT
+```
+
+---
+
+## 🚀 Cara Penggunaan di Kode PHP:
+
+Setelah `.env` diisi, file `config/supabase.php` otomatis membaca project Supabase baru tersebut:
+
 ```php
 require_once __DIR__ . '/config/supabase.php';
 
-// 1. Mengambil data jadwal misa dari Supabase
-$result = SupabaseClient::get('mass_schedules', 'select=*&order=tanggal_misa.asc');
-if ($result['status'] === 200) {
-    $jadwalList = $result['data'];
-    foreach ($jadwalList as $jadwal) {
-        echo $jadwal['judul_misa'] . ' - ' . $jadwal['tanggal_misa'] . '<br>';
-    }
-}
+// Ambil data jadwal dari project Supabase baru
+$res = SupabaseClient::get('mass_schedules', 'select=*&order=tanggal_misa.asc');
+$jadwalList = $res['data'];
 
-// 2. Menambah anggota baru ke Supabase
-$newMember = SupabaseClient::insert('profiles', [
-    'email'             => 'userbaru@sidinar.org',
+// Tambah anggota baru
+SupabaseClient::insert('profiles', [
+    'email'             => 'misdinarbaru@sidinar.org',
     'nama_lengkap'      => 'Fransiskus Xaverius',
     'nama_panggilan'    => 'Frans',
     'no_telepon'        => '081234567890',
@@ -41,56 +75,11 @@ $newMember = SupabaseClient::insert('profiles', [
     'role'              => 'anggota',
     'status'            => 'aktif'
 ]);
-
-// 3. Update status kehadiran booking
-SupabaseClient::update('bookings', 'id=eq.' . $bookingId, [
-    'status_kehadiran' => 'hadir',
-    'waktu_checkin'    => date('Y-m-d H:i:s')
-]);
-
-// 4. Hapus data
-SupabaseClient::delete('bookings', 'id=eq.' . $bookingId);
 ```
 
 ---
 
-## 🐘 Metode 2: Lewat Direct PostgreSQL PDO (Opsional)
-Jika Anda ingin menggunakan query SQL standar (`$db->query("SELECT ...")`) langsung ke server PostgreSQL Supabase:
-
-### Langkah 1: Aktifkan Ekstensi PDO PostgreSQL di XAMPP
-1. Buka file `php.ini` di: `D:\xampp\php\php.ini` (atau via XAMPP Control Panel > Tombol **Config** di Apache > `PHP (php.ini)`).
-2. Cari baris berikut (tekan `Ctrl + F` dan ketik `pdo_pgsql`):
-   ```ini
-   ;extension=pdo_pgsql
-   ```
-3. Hapus tanda titik koma (`;`) di depannya sehingga menjadi:
-   ```ini
-   extension=pdo_pgsql
-   ```
-4. Simpan file `php.ini` dan restart Apache di XAMPP.
-
-### Langkah 2: Dapatkan Password Database Supabase
-1. Buka dashboard: **[https://supabase.com/dashboard](https://supabase.com/dashboard)**
-2. Pilih project **SiDinar Regina** (`tkclthikptiotudrtkty`).
-3. Masuk ke menu **Project Settings** (ikon gerigi) > **Database**.
-4. Di bagian **Connection parameters**:
-   - **Host**: `db.tkclthikptiotudrtkty.supabase.co`
-   - **Database name**: `postgres`
-   - **Port**: `5432` (atau `6543` untuk Session Pooler)
-   - **User**: `postgres`
-   - **Password**: *(Password database yang Anda buat saat pertama kali membuat project Supabase)*.
-
-### Langkah 3: Masukkan Password ke `config/database.php`
-Di file `config/database.php`, isi konstanta `SUPABASE_DB_PASS`:
-```php
-define('SUPABASE_DB_PASS', 'PASSWORD_DATABASE_SUPABASE_ANDA');
-```
-Begitu password diisi dan ekstensi `pdo_pgsql` aktif, `get_db()` akan **langsung otomatis terhubung ke PostgreSQL Supabase**!
-
----
-
-## 🗄️ Status Urutan Driver Database Saat Ini
-Di dalam `config/database.php`, hierarki koneksi otomatis berjalan sebagai berikut:
-1. **Supabase PostgreSQL**: Aktif otomatis jika `SUPABASE_DB_PASS` diisi & ekstensi `pdo_pgsql` aktif.
-2. **MySQL Lokal XAMPP (Default Utama)**: Menghubungkan ke `127.0.0.1:3306/sidinar_db` secara otomatis.
-3. **SQLite Lokal (Fallback)**: Berjalan otomatis jika MySQL lokal mati, sehingga web selalu aman 100% tanpa error.
+## 🗄️ Status Database PHP Native Saat Ini
+1. **Supabase Baru**: Siap digunakan kapan pun dengan mengisi file `.env` di atas.
+2. **MySQL Lokal XAMPP (Default)**: Menghubungkan ke `127.0.0.1:3306/sidinar_db` secara lokal.
+3. **SQLite Lokal (Fallback)**: Aktif otomatis jika MySQL XAMPP sedang tidak dinyalakan.
