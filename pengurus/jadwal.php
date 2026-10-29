@@ -9,6 +9,9 @@ require_once __DIR__ . '/../includes/functions.php';
 require_pengurus();
 
 $pdo = get_db();
+
+// Auto-update status pendaftaran yang telah melewati batas toleransi menjadi alpa
+auto_update_expired_attendance($pdo);
 $flash_msg = null;
 $flash_type = 'success';
 

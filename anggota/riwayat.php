@@ -11,6 +11,9 @@ require_login();
 $user = current_user();
 $pdo = get_db();
 
+// Auto-update status pendaftaran yang telah melewati batas toleransi menjadi alpa
+auto_update_expired_attendance($pdo);
+
 // Filter Parameter
 $status_filter = $_GET['status'] ?? 'semua';
 

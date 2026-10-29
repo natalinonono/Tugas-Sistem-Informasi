@@ -24,6 +24,9 @@ if (!$booking_id) {
 try {
     $pdo = get_db();
 
+    // Auto-update seluruh tugas lampau yang belum absen menjadi alpa
+    auto_update_expired_attendance($pdo);
+
     // Ambil booking beserta jadwal
     $stmt = $pdo->prepare("
         SELECT b.*, s.judul_misa, s.tanggal_misa, s.jam_mulai, s.qr_token AS valid_qr_token
@@ -45,6 +48,16 @@ try {
         exit;
     }
 
+    // Jika sudah alpa karena melewati batas toleransi
+    if ($booking['status_kehadiran'] === 'alpa') {
+        echo json_encode([
+            'success' => false,
+            'status' => 'alpa',
+            'error' => 'Batas toleransi presensi telah berakhir (maksimal 45 menit setelah misa). Status Anda adalah ALPA dan tidak dapat presensi mandiri.'
+        ]);
+        exit;
+    }
+
     // Jika sudah presensi sebelumnya
     if ($booking['status_kehadiran'] === 'hadir' || $booking['status_kehadiran'] === 'terlambat') {
         echo json_encode([
@@ -55,9 +68,21 @@ try {
         exit;
     }
 
-    // Evaluasi waktu checkin (Tepat Waktu vs Terlambat)
+    // Evaluasi waktu checkin (Tepat Waktu vs Terlambat vs Alpa)
     $status = evaluate_checkin_status($booking['tanggal_misa'], $booking['jam_mulai']);
     $waktu_checkin = date('Y-m-d H:i:s');
+
+    if ($status === 'alpa') {
+        $update = $pdo->prepare("UPDATE bookings SET status_kehadiran = 'alpa' WHERE id = ?");
+        $update->execute([$booking_id]);
+
+        echo json_encode([
+            'success' => false,
+            'status' => 'alpa',
+            'error' => 'Batas waktu toleransi presensi telah berakhir (45 menit pasca misa). Status tugas otomatis tercatat Alpa.'
+        ]);
+        exit;
+    }
 
     $update = $pdo->prepare("UPDATE bookings SET status_kehadiran = ?, waktu_checkin = ? WHERE id = ?");
     $update->execute([$status, $waktu_checkin, $booking_id]);

@@ -96,16 +96,66 @@ function generate_whatsapp_reminder_link(array $schedule, array $member): array 
     ];
 }
 
+/**
+ * Evaluasi status checkin berdasarkan waktu:
+ * - Sebelum H-20 menit: 'hadir' (tepat waktu)
+ * - Antara H-20 menit s/d masa tugas + toleransi (120 menit / 2 jam setelah jam mulai misa): 'terlambat'
+ * - Melewati batas toleransi (45 menit pasca misa / 120 menit setelah jam mulai): 'alpa'
+ * Contoh: Misa 05:30 -> Toleransi s/d 07:30. Lewat dari 07:30 otomatis 'alpa'.
+ */
 function evaluate_checkin_status(string $tanggal_misa, string $jam_mulai): string {
     $now = time();
     $massTimestamp = strtotime("$tanggal_misa $jam_mulai");
 
-    // Batas waktu: tepat waktu jika checkin sebelum H-20 menit
+    // Batas toleransi akhir: durasi misa (~75 menit) + 45 menit toleransi = 120 menit (2 jam)
+    $limitToleransiAkhir = $massTimestamp + (120 * 60);
+
+    // Batas tepat waktu: H-20 menit
     $limitTepatWaktu = $massTimestamp - (20 * 60);
 
-    if ($now <= $limitTepatWaktu) {
+    if ($now > $limitToleransiAkhir) {
+        return 'alpa';
+    } elseif ($now <= $limitTepatWaktu) {
         return 'hadir';
     } else {
         return 'terlambat';
+    }
+}
+
+/**
+ * Otomatis update seluruh pendaftaran yang belum absen ('terdaftar') menjadi 'alpa'
+ * jika waktu sekarang sudah melewati batas toleransi tugas misa (120 menit setelah jam mulai).
+ */
+function auto_update_expired_attendance(PDO $pdo): int {
+    try {
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $stmt = $pdo->prepare("
+                UPDATE bookings 
+                SET status_kehadiran = 'alpa' 
+                WHERE status_kehadiran = 'terdaftar' 
+                  AND schedule_id IN (
+                      SELECT id FROM mass_schedules 
+                      WHERE datetime(tanggal_misa || ' ' || jam_mulai, '+120 minutes') < datetime('now', 'localtime')
+                  )
+            ");
+            $stmt->execute();
+            return $stmt->rowCount();
+        } else {
+            // MySQL / MariaDB
+            $stmt = $pdo->prepare("
+                UPDATE bookings b
+                JOIN mass_schedules s ON b.schedule_id = s.id
+                SET b.status_kehadiran = 'alpa'
+                WHERE b.status_kehadiran = 'terdaftar'
+                  AND TIMESTAMP(s.tanggal_misa, s.jam_mulai) < DATE_SUB(NOW(), INTERVAL 120 MINUTE)
+            ");
+            $stmt->execute();
+            return $stmt->rowCount();
+        }
+    } catch (Exception $e) {
+        // Silent catch agar tidak mengganggu rendering halaman utama
+        error_log("Auto update alpa failed: " . $e->getMessage());
+        return 0;
     }
 }
