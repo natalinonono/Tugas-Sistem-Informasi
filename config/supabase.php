@@ -93,3 +93,4 @@ class SupabaseClient {
         return self::request('/rpc/' . $functionName, 'POST', $params, true);
     }
 }
+

@@ -1,12 +1,12 @@
 <?php
 /**
- * Konfigurasi Database PDO Multi-Driver (MySQL Primary + Cloud Fallback + SQLite Fallback)
+ * Konfigurasi Database PDO Multi-Driver (MySQL Primary + Supabase PostgreSQL + SQLite Fallback)
  * SiDinar Regina - Sistem Informasi & Presensi Putra-Putri Altar
  */
 
 require_once __DIR__ . '/supabase.php';
 
-// 1. Parsing DATABASE_URL jika diberikan oleh Cloud Hosting (Vercel/Railway/TiDB/Supabase)
+// 1. Parsing DATABASE_URL jika diberikan oleh Cloud Hosting (Vercel/Railway/Supabase)
 $dbUrl = getenv('DATABASE_URL') ?: getenv('MYSQL_URL');
 $parsedUrl = $dbUrl ? parse_url($dbUrl) : [];
 
@@ -17,14 +17,15 @@ define('DB_USER', $parsedUrl['user'] ?? (getenv('DB_USER') ?: 'root'));
 define('DB_PASS', isset($parsedUrl['pass']) ? $parsedUrl['pass'] : (getenv('DB_PASS') !== false && getenv('DB_PASS') !== null ? (string)getenv('DB_PASS') : ''));
 define('DB_NAME', isset($parsedUrl['path']) ? trim($parsedUrl['path'], '/') : (getenv('DB_NAME') ?: 'sidinar_db'));
 
-// Konfigurasi Cloud Fallback (TiDB Cloud Serverless jika MySQL lokal mati)
-define('CLOUD_DB_HOST', 'gateway01.ap-northeast-1.prod.aws.tidbcloud.com');
-define('CLOUD_DB_PORT', '4000');
-define('CLOUD_DB_USER', '4Sv9mvyvExsfxAK.root');
-define('CLOUD_DB_PASS', '8JaIzgstp8JbvfKm');
-define('CLOUD_DB_NAME', 'test');
+// Konfigurasi Supabase PostgreSQL (Direct / Session Pooler)
+// Isi SUPABASE_DB_PASS dengan password database Supabase Anda untuk mengaktifkan koneksi langsung
+define('SUPABASE_DB_HOST', getenv('SUPABASE_DB_HOST') ?: 'db.tkclthikptiotudrtkty.supabase.co');
+define('SUPABASE_DB_PORT', (string)(getenv('SUPABASE_DB_PORT') ?: '5432'));
+define('SUPABASE_DB_NAME', getenv('SUPABASE_DB_NAME') ?: 'postgres');
+define('SUPABASE_DB_USER', getenv('SUPABASE_DB_USER') ?: 'postgres');
+define('SUPABASE_DB_PASS', getenv('SUPABASE_DB_PASS') ?: '');
 
-// File SQLite lokal (fallback darurat jika belum terhubung ke cloud/MySQL)
+// File SQLite lokal (fallback darurat jika belum terhubung ke MySQL/Supabase)
 $sqlitePath = getenv('VERCEL') ? '/tmp/sidinar.sqlite' : (__DIR__ . '/../database/sidinar.sqlite');
 define('SQLITE_FILE', $sqlitePath);
 
@@ -40,7 +41,18 @@ function get_db(): PDO {
         PDO::ATTR_EMULATE_PREPARES   => false,
     ];
 
-    // 1. Coba koneksi ke MySQL Lokal (XAMPP / Server Lokal)
+    // 1. Coba koneksi ke Supabase PostgreSQL jika SUPABASE_DB_PASS diisi & pdo_pgsql aktif
+    if (!empty(SUPABASE_DB_PASS) && extension_loaded('pdo_pgsql')) {
+        try {
+            $pgDsn = "pgsql:host=" . SUPABASE_DB_HOST . ";port=" . SUPABASE_DB_PORT . ";dbname=" . SUPABASE_DB_NAME . ";sslmode=require";
+            $pdo = new PDO($pgDsn, SUPABASE_DB_USER, SUPABASE_DB_PASS, $options);
+            return $pdo;
+        } catch (Exception $pgEx) {
+            // Lanjut ke MySQL lokal jika Supabase PostgreSQL belum terhubung
+        }
+    }
+
+    // 2. Coba koneksi ke MySQL Lokal (XAMPP / Server Lokal)
     try {
         $dsn = "mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME . ";charset=utf8mb4";
         $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
@@ -65,45 +77,9 @@ function get_db(): PDO {
                 $pdo = $tmpPdo;
                 return $pdo;
             } catch (Exception $e2) {
-                // Lanjut ke fallback cloud jika MySQL lokal mati
+                // Lanjut ke fallback SQLite jika MySQL lokal mati
             }
         }
-    }
-
-    // 2. Coba koneksi ke Cloud MySQL Fallback (TiDB)
-    try {
-        $cloudOptions = $options;
-        $caPaths = [
-            __DIR__ . '/cacert.pem',
-            ini_get('openssl.cafile'),
-            ini_get('curl.cainfo'),
-            '/etc/ssl/certs/ca-certificates.crt',
-            '/etc/pki/tls/certs/ca-bundle.crt',
-            'D:/xampp/apache/bin/curl-ca-bundle.crt',
-            'C:/xampp/apache/bin/curl-ca-bundle.crt'
-        ];
-        foreach ($caPaths as $path) {
-            if (!empty($path) && file_exists($path)) {
-                $cloudOptions[PDO::MYSQL_ATTR_SSL_CA] = $path;
-                break;
-            }
-        }
-        if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
-            $cloudOptions[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
-        }
-
-        $cloudDsn = "mysql:host=" . CLOUD_DB_HOST . ";port=" . CLOUD_DB_PORT . ";dbname=" . CLOUD_DB_NAME . ";charset=utf8mb4";
-        $pdo = new PDO($cloudDsn, CLOUD_DB_USER, CLOUD_DB_PASS, $cloudOptions);
-
-        try {
-            $pdo->query("SELECT 1 FROM profiles LIMIT 1");
-        } catch (Exception $notExist) {
-            init_mysql_tables($pdo);
-        }
-
-        return $pdo;
-    } catch (Exception $cloudEx) {
-        // Lanjut ke SQLite
     }
 
     // 3. Fallback Terakhir ke SQLite Lokal
