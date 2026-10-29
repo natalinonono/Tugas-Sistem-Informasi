@@ -176,7 +176,6 @@ require_once __DIR__ . '/../includes/header.php';
           <tr>
             <th class="py-3.5 px-4">Jadwal Misa</th>
             <th class="py-3.5 px-4">Tanggal &amp; Waktu</th>
-            <th class="py-3.5 px-4">Posisi Liturgi</th>
             <th class="py-3.5 px-4">Status Kehadiran</th>
             <th class="py-3.5 px-4">Waktu Presensi</th>
           </tr>
@@ -200,12 +199,6 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="text-[11px] text-on-surface-variant font-sans">
                   Pukul <?= substr($h['jam_mulai'], 0, 5) ?> WIB
                 </div>
-              </td>
-              <td class="py-3.5 px-4">
-                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-surface-container text-primary border border-surface-container-high">
-                  <span class="material-symbols-outlined text-[13px]">person</span>
-                  <?= htmlspecialchars($h['posisi_tugas'] ?? 'Petugas Altar') ?>
-                </span>
               </td>
               <td class="py-3.5 px-4">
                 <?php

@@ -256,8 +256,6 @@ require_once __DIR__ . '/../includes/header.php';
           <span>📅 <?= format_indo_date($active_duty['tanggal_misa']) ?></span>
           <span>•</span>
           <span class="font-bold text-on-surface">⏰ <?= substr($active_duty['jam_mulai'], 0, 5) ?> WIB</span>
-          <span>•</span>
-          <span>🛡️ Peran: <strong><?= htmlspecialchars($active_duty['posisi_tugas']) ?></strong></span>
         </div>
       </div>
 
@@ -466,16 +464,11 @@ require_once __DIR__ . '/../includes/header.php';
         <div id="book-modal-time" class="text-[11px] text-on-surface-variant">--</div>
       </div>
 
-      <div>
-        <label class="block font-semibold text-on-surface-variant mb-1">Pilih Peran Liturgi Altar *</label>
-        <select name="posisi_tugas" required class="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
-          <?php foreach ($liturgical_positions as $pos): ?>
-            <option value="<?= $pos ?>"><?= $pos ?></option>
-          <?php endforeach; ?>
-        </select>
-        <span class="text-[11px] text-on-surface-variant mt-1 block">
-          *Pastikan hadir paling lambat H-30 menit di sakristi dalam kondisi rapi.
-        </span>
+      <input type="hidden" name="posisi_tugas" value="Petugas Altar">
+
+      <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] flex items-center gap-2">
+        <span class="material-symbols-outlined text-base text-amber-700">info</span>
+        <span>Pastikan Anda hadir di sakristi paling lambat 30 menit sebelum perayaan Ekaristi dimulai dalam kondisi siap dengan jubah rapi.</span>
       </div>
 
       <div class="p-3 border-t border-surface-container mt-2 flex justify-end gap-2">
@@ -503,7 +496,6 @@ require_once __DIR__ . '/../includes/header.php';
       <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container w-full text-left">
         <div id="checkin-title" class="font-bold text-sm text-primary">--</div>
         <div id="checkin-time" class="text-[11px] text-on-surface-variant">--</div>
-        <div id="checkin-peran" class="text-[11px] font-semibold text-secondary mt-1">--</div>
       </div>
 
       <div class="p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md my-1">
@@ -541,11 +533,10 @@ require_once __DIR__ . '/../includes/header.php';
     openModal('modal-book-schedule');
   }
 
-  function openCheckinModal(bookingId, title, date, time, peran) {
+  function openCheckinModal(bookingId, title, date, time) {
     document.getElementById('checkin-booking-id').value = bookingId;
     document.getElementById('checkin-title').innerText = title;
     document.getElementById('checkin-time').innerText = date + ' • ' + time + ' WIB';
-    document.getElementById('checkin-peran').innerText = 'Peran: ' + peran;
     
     // QR generator URL
     const qrPayload = 'SIDINAR:' + bookingId + ':<?= $user['id'] ?>:' + date;

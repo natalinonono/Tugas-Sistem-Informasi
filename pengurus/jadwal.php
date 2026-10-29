@@ -332,7 +332,6 @@ require_once __DIR__ . '/../includes/header.php';
                 <thead>
                   <tr class="border-b border-surface-container text-on-surface-variant font-semibold">
                     <th class="py-2.5 px-3">Nama Misdinar</th>
-                    <th class="py-2.5 px-3">Peran Liturgi</th>
                     <th class="py-2.5 px-3">Status</th>
                     <th class="py-2.5 px-3 text-right">Aksi</th>
                   </tr>
@@ -358,22 +357,6 @@ require_once __DIR__ . '/../includes/header.php';
                           <div class="text-[10px] text-on-surface-variant">📱 <?= htmlspecialchars($r['no_telepon']) ?> • <?= htmlspecialchars($r['asal_wilayah_teks']) ?></div>
                         </div>
                       </div>
-                    </td>
-                    <td class="py-3 px-3">
-                      <form method="POST" action="" class="inline-flex items-center">
-                        <input type="hidden" name="action" value="update_position">
-                        <input type="hidden" name="booking_id" value="<?= $r['id'] ?>">
-                        <input type="hidden" name="schedule_id" value="<?= $selected_schedule['id'] ?>">
-                        <select
-                          name="posisi_tugas"
-                          onchange="this.form.submit()"
-                          class="px-2 py-1 rounded-lg text-[11px] font-medium bg-surface-container-high border border-surface-container text-on-surface cursor-pointer"
-                        >
-                          <?php foreach ($liturgical_positions as $pos): ?>
-                            <option value="<?= $pos ?>" <?= $r['posisi_tugas'] === $pos ? 'selected' : '' ?>><?= $pos ?></option>
-                          <?php endforeach; ?>
-                        </select>
-                      </form>
                     </td>
                     <td class="py-3 px-3">
                       <span class="px-2 py-0.5 rounded-full text-[10px] font-bold <?= $st_cls ?> uppercase">
@@ -511,14 +494,7 @@ require_once __DIR__ . '/../includes/header.php';
         </select>
       </div>
 
-      <div>
-        <label class="block font-semibold text-on-surface-variant mb-1">Peran Liturgi *</label>
-        <select name="posisi_tugas" required class="w-full px-3 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs">
-          <?php foreach ($liturgical_positions as $pos): ?>
-            <option value="<?= $pos ?>"><?= $pos ?></option>
-          <?php endforeach; ?>
-        </select>
-      </div>
+      <input type="hidden" name="posisi_tugas" value="Petugas Altar">
 
       <div class="p-3 border-t border-surface-container mt-2 flex justify-end gap-2">
         <button type="button" onclick="closeModal('modal-assign-member')" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface font-semibold">Batal</button>

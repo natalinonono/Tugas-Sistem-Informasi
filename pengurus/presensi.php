@@ -284,7 +284,6 @@ require_once __DIR__ . '/../includes/header.php';
             <thead>
               <tr class="border-b border-surface-container text-on-surface-variant font-semibold">
                 <th class="py-3 px-3">Petugas Altar</th>
-                <th class="py-3 px-3">Peran Liturgi</th>
                 <th class="py-3 px-3">Status</th>
                 <th class="py-3 px-3">Waktu Check-in</th>
                 <th class="py-3 px-3 text-right">Ubah Presensi</th>
@@ -312,11 +311,6 @@ require_once __DIR__ . '/../includes/header.php';
                       <div class="text-[10px] text-on-surface-variant"><?= htmlspecialchars($r['asal_wilayah_teks']) ?></div>
                     </div>
                   </div>
-                </td>
-                <td class="py-3 px-3">
-                  <span class="inline-flex px-2 py-0.5 rounded-md bg-surface-container text-[11px] font-medium text-on-surface">
-                    <?= htmlspecialchars($r['posisi_tugas']) ?>
-                  </span>
                 </td>
                 <td class="py-3 px-3">
                   <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold <?= $badge_class ?> uppercase">

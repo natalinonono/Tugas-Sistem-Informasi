@@ -353,7 +353,7 @@ require_once __DIR__ . '/../includes/header.php';
               </div>
               <div class="flex flex-col">
                 <span class="text-xs font-bold text-on-surface"><?= htmlspecialchars($p['nama_lengkap']) ?></span>
-                <span class="text-[10px] text-on-surface-variant"><?= htmlspecialchars($p['posisi_tugas']) ?> • <?= htmlspecialchars($p['judul_misa']) ?></span>
+                <span class="text-[10px] text-on-surface-variant"><?= htmlspecialchars($p['judul_misa']) ?> • Pukul <?= substr($p['jam_mulai'], 0, 5) ?> WIB</span>
               </div>
             </div>
 

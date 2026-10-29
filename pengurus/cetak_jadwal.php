@@ -242,18 +242,17 @@ $roster = $bStmt->fetchAll();
     <thead>
       <tr>
         <th style="width: 35px;">No</th>
-        <th>Posisi Tugas Liturgi</th>
         <th>Nama Misdinar</th>
         <th>Jenjang / Wilayah</th>
         <th>No. Telepon / WA</th>
         <th style="width: 90px;">Kehadiran</th>
-        <th style="width: 90px;">Tanda Tangan</th>
+        <th style="width: 110px;">Tanda Tangan</th>
       </tr>
     </thead>
     <tbody>
       <?php if (empty($roster)): ?>
         <tr>
-          <td colspan="7" style="text-align: center; padding: 20px; font-style: italic;">
+          <td colspan="6" style="text-align: center; padding: 20px; font-style: italic;">
             Belum ada misdinar yang terdaftar dalam jadwal tugas ini.
           </td>
         </tr>
@@ -261,8 +260,7 @@ $roster = $bStmt->fetchAll();
         <?php $no = 1; foreach ($roster as $p): ?>
           <tr>
             <td style="text-align: center;"><?= $no++ ?></td>
-            <td><strong><?= htmlspecialchars($p['posisi_tugas']) ?></strong></td>
-            <td><?= htmlspecialchars($p['nama_lengkap']) ?> (<em><?= htmlspecialchars($p['nama_panggilan']) ?></em>)</td>
+            <td><strong><?= htmlspecialchars($p['nama_lengkap']) ?></strong> (<em><?= htmlspecialchars($p['nama_panggilan']) ?></em>)</td>
             <td><?= htmlspecialchars($p['jenjang']) ?> / <?= htmlspecialchars($p['asal_wilayah_teks']) ?></td>
             <td><?= htmlspecialchars($p['no_telepon']) ?></td>
             <td style="text-align: center;">
@@ -284,8 +282,7 @@ $roster = $bStmt->fetchAll();
         ?>
           <tr>
             <td style="text-align: center; color: #888;"><?= $no++ ?></td>
-            <td style="color: #888;">Petugas Cadangan / Altar</td>
-            <td></td>
+            <td style="color: #888;">(Petugas Cadangan)</td>
             <td></td>
             <td></td>
             <td style="text-align: center;">[ &nbsp; &nbsp; &nbsp; &nbsp; ]</td>
