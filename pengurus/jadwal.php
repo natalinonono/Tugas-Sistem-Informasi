@@ -47,12 +47,43 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if ($action === 'delete_schedule') {
         $schedule_id = (int)($_POST['schedule_id'] ?? 0);
         if ($schedule_id) {
+            $delB = $pdo->prepare("DELETE FROM bookings WHERE schedule_id = ?");
+            $delB->execute([$schedule_id]);
+
             $stmt = $pdo->prepare("DELETE FROM mass_schedules WHERE id = ?");
             $stmt->execute([$schedule_id]);
             set_flash('success', 'Jadwal misa berhasil dihapus dari sistem.');
             header('Location: jadwal.php');
             exit;
         }
+    }
+
+    // 2b. Hapus Jadwal Beberapa Sekaligus (Bulk Delete)
+    if ($action === 'bulk_delete_schedules') {
+        $rawIds = $_POST['schedule_ids'] ?? [];
+        if (!is_array($rawIds)) {
+            $rawIds = explode(',', (string)$rawIds);
+        }
+        $ids = array_filter(array_map('intval', $rawIds));
+
+        if (!empty($ids)) {
+            $inPlaceholders = implode(',', array_fill(0, count($ids), '?'));
+
+            // Hapus data pendaftaran terkait jadwal terpilih terlebih dahulu
+            $delBookings = $pdo->prepare("DELETE FROM bookings WHERE schedule_id IN ($inPlaceholders)");
+            $delBookings->execute($ids);
+
+            // Hapus jadwal misa terpilih
+            $delSchedules = $pdo->prepare("DELETE FROM mass_schedules WHERE id IN ($inPlaceholders)");
+            $delSchedules->execute($ids);
+
+            $deletedCount = count($ids);
+            set_flash('success', "Berhasil menghapus {$deletedCount} jadwal misa terpilih beserta data penugasan terkait.");
+        } else {
+            set_flash('error', 'Tidak ada jadwal misa yang dipilih untuk dihapus.');
+        }
+        header('Location: jadwal.php');
+        exit;
     }
 
     // 3. Tambah Petugas Manual oleh Pengurus
@@ -325,38 +356,98 @@ require_once __DIR__ . '/../includes/header.php';
         <h2 class="text-xs uppercase font-bold text-on-surface-variant tracking-wider">
           Pilih Jadwal Misa (<?= count($all_schedules) ?>)
         </h2>
+        <?php if (!empty($all_schedules)): ?>
+          <button
+            type="button"
+            onclick="toggleBulkMode()"
+            id="btn-toggle-bulk"
+            class="text-[11px] font-bold text-primary hover:text-primary-hover flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors cursor-pointer"
+          >
+            <span class="material-symbols-outlined text-sm">checklist</span>
+            <span id="bulk-toggle-text">Pilih Banyak</span>
+          </button>
+        <?php endif; ?>
       </div>
 
-      <div class="flex flex-col gap-2.5 max-h-[750px] overflow-y-auto pr-1">
-        <?php foreach ($all_schedules as $s): 
-          $isSelected = ($selected_schedule && $selected_schedule['id'] == $s['id']);
-        ?>
-        <a
-          href="?schedule_id=<?= $s['id'] ?>"
-          class="p-4 rounded-2xl border text-xs transition-all block text-left <?= $isSelected ? 'bg-surface-container-lowest border-primary shadow-md ring-1 ring-primary/30' : 'bg-surface-container-low border-surface-container hover:bg-surface-container-lowest' ?>"
-        >
-          <div class="flex items-center justify-between gap-2 mb-1.5">
-            <span class="text-[10px] font-semibold text-secondary uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary-fixed/50">
-              <?= $s['kategori'] === 'harian' ? 'Harian' : 'Mingguan' ?>
+      <!-- Bulk Action Bar -->
+      <form id="form-bulk-delete" method="POST" action="" onsubmit="return confirmBulkDelete(event)">
+        <input type="hidden" name="action" value="bulk_delete_schedules">
+        
+        <div id="bulk-action-bar" class="hidden p-3 rounded-2xl bg-surface-container-high border border-outline-variant flex-col gap-2 mb-2 animate-fadeIn shadow-xs">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-on-surface select-none">
+              <input type="checkbox" id="check-all-schedules" onchange="toggleSelectAllSchedules(this)" class="rounded w-4 h-4 text-primary focus:ring-0 cursor-pointer">
+              <span>Pilih Semua</span>
+            </label>
+            <span id="selected-schedules-count" class="text-[11px] font-bold text-secondary">
+              0 jadwal terpilih
             </span>
           </div>
-
-          <h3 class="font-headline font-bold text-primary text-sm truncate"><?= htmlspecialchars($s['judul_misa']) ?></h3>
-          
-          <div class="flex items-center justify-between text-on-surface-variant text-[11px] mt-2">
-            <span>📅 <?= format_indo_date($s['tanggal_misa']) ?></span>
-            <span class="font-bold text-on-surface">⏰ <?= substr($s['jam_mulai'], 0, 5) ?> WIB</span>
+          <div class="flex items-center gap-2 pt-2 border-t border-surface-container">
+            <button
+              type="submit"
+              id="btn-bulk-delete-submit"
+              disabled
+              class="flex-1 py-2 px-3 rounded-xl bg-error text-white font-bold text-xs disabled:opacity-40 disabled:cursor-not-allowed hover:bg-red-700 transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <span class="material-symbols-outlined text-sm">delete_sweep</span>
+              <span>Hapus Terpilih (<span id="btn-count">0</span>)</span>
+            </button>
+            <button
+              type="button"
+              onclick="toggleBulkMode(false)"
+              class="py-2 px-3 rounded-xl bg-surface-container-highest text-on-surface text-xs font-semibold hover:bg-surface-container transition-colors cursor-pointer"
+            >
+              Batal
+            </button>
           </div>
+        </div>
 
-          <div class="mt-2.5 flex items-center justify-between text-[11px]">
-            <span class="font-semibold <?= $s['terisi'] >= $s['kuota_maksimal'] ? 'text-error' : 'text-primary' ?>">
-              <?= $s['terisi'] ?> / <?= $s['kuota_maksimal'] ?> Petugas
-            </span>
-            <span class="text-[10px] text-outline">Minggu ke-<?= $s['minggu_ke'] ?></span>
+        <div class="flex flex-col gap-2.5 max-h-[750px] overflow-y-auto pr-1">
+          <?php foreach ($all_schedules as $s): 
+            $isSelected = ($selected_schedule && $selected_schedule['id'] == $s['id']);
+          ?>
+          <div class="schedule-card-wrapper relative rounded-2xl transition-all">
+            <!-- Bulk Checkbox (toggled with bulk mode) -->
+            <div class="bulk-check-container hidden absolute top-4 left-3 z-10">
+              <input
+                type="checkbox"
+                name="schedule_ids[]"
+                value="<?= $s['id'] ?>"
+                onchange="updateBulkDeleteState()"
+                class="schedule-checkbox rounded w-4 h-4 text-primary focus:ring-0 cursor-pointer"
+              >
+            </div>
+
+            <a
+              href="?schedule_id=<?= $s['id'] ?>"
+              id="schedule-link-<?= $s['id'] ?>"
+              class="schedule-card p-4 rounded-2xl border text-xs transition-all block text-left <?= $isSelected ? 'bg-surface-container-lowest border-primary shadow-md ring-1 ring-primary/30' : 'bg-surface-container-low border-surface-container hover:bg-surface-container-lowest' ?>"
+            >
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <span class="text-[10px] font-semibold text-secondary uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary-fixed/50">
+                  <?= $s['kategori'] === 'harian' ? 'Harian' : 'Mingguan' ?>
+                </span>
+              </div>
+
+              <h3 class="font-headline font-bold text-primary text-sm truncate"><?= htmlspecialchars($s['judul_misa']) ?></h3>
+              
+              <div class="flex items-center justify-between text-on-surface-variant text-[11px] mt-2">
+                <span>📅 <?= format_indo_date($s['tanggal_misa']) ?></span>
+                <span class="font-bold text-on-surface">⏰ <?= substr($s['jam_mulai'], 0, 5) ?> WIB</span>
+              </div>
+
+              <div class="mt-2.5 flex items-center justify-between text-[11px]">
+                <span class="font-semibold <?= $s['terisi'] >= $s['kuota_maksimal'] ? 'text-error' : 'text-primary' ?>">
+                  <?= $s['terisi'] ?> / <?= $s['kuota_maksimal'] ?> Petugas
+                </span>
+                <span class="text-[10px] text-outline">Minggu ke-<?= $s['minggu_ke'] ?></span>
+              </div>
+            </a>
           </div>
-        </a>
-        <?php endforeach; ?>
-      </div>
+          <?php endforeach; ?>
+        </div>
+      </form>
     </div>
 
     <!-- Right Column: Selected Schedule Details & Roster Deck -->
@@ -643,5 +734,108 @@ require_once __DIR__ . '/../includes/header.php';
     </form>
   </div>
 </div>
+
+<script>
+let isBulkMode = false;
+
+function toggleBulkMode(forceState = null) {
+  isBulkMode = (forceState !== null) ? forceState : !isBulkMode;
+  const bar = document.getElementById('bulk-action-bar');
+  const checkContainers = document.querySelectorAll('.bulk-check-container');
+  const toggleBtnText = document.getElementById('bulk-toggle-text');
+  const cards = document.querySelectorAll('.schedule-card');
+
+  if (isBulkMode) {
+    if (bar) {
+      bar.classList.remove('hidden');
+      bar.classList.add('flex');
+    }
+    checkContainers.forEach(c => c.classList.remove('hidden'));
+    cards.forEach(card => card.classList.add('pl-10'));
+    if (toggleBtnText) toggleBtnText.innerText = 'Tutup Pilihan';
+  } else {
+    if (bar) {
+      bar.classList.remove('flex');
+      bar.classList.add('hidden');
+    }
+    checkContainers.forEach(c => c.classList.add('hidden'));
+    cards.forEach(card => card.classList.remove('pl-10'));
+    if (toggleBtnText) toggleBtnText.innerText = 'Pilih Banyak';
+
+    // Reset all checkboxes
+    const allChecks = document.querySelectorAll('.schedule-checkbox');
+    allChecks.forEach(cb => cb.checked = false);
+    const masterCheck = document.getElementById('check-all-schedules');
+    if (masterCheck) masterCheck.checked = false;
+    updateBulkDeleteState();
+  }
+}
+
+function toggleSelectAllSchedules(master) {
+  const allChecks = document.querySelectorAll('.schedule-checkbox');
+  allChecks.forEach(cb => cb.checked = master.checked);
+  updateBulkDeleteState();
+}
+
+function updateBulkDeleteState() {
+  const checked = document.querySelectorAll('.schedule-checkbox:checked');
+  const count = checked.length;
+  const countEl = document.getElementById('selected-schedules-count');
+  const btnCount = document.getElementById('btn-count');
+  const btnSubmit = document.getElementById('btn-bulk-delete-submit');
+  const masterCheck = document.getElementById('check-all-schedules');
+  const allChecks = document.querySelectorAll('.schedule-checkbox');
+
+  if (countEl) countEl.innerText = count + ' jadwal terpilih';
+  if (btnCount) btnCount.innerText = count;
+  if (btnSubmit) {
+    btnSubmit.disabled = (count === 0);
+  }
+  if (masterCheck && allChecks.length > 0) {
+    masterCheck.checked = (count === allChecks.length);
+  }
+
+  // Update visual highlight on checked cards
+  allChecks.forEach(cb => {
+    const card = cb.closest('.schedule-card-wrapper')?.querySelector('.schedule-card');
+    if (card) {
+      if (cb.checked) {
+        card.classList.add('border-error', 'ring-2', 'ring-error/30');
+      } else {
+        card.classList.remove('border-error', 'ring-2', 'ring-error/30');
+      }
+    }
+  });
+}
+
+function confirmBulkDelete(e) {
+  const count = document.querySelectorAll('.schedule-checkbox:checked').length;
+  if (count === 0) {
+    alert('Silakan pilih minimal 1 jadwal misa untuk dihapus.');
+    e.preventDefault();
+    return false;
+  }
+  const conf = confirm(`Apakah Anda yakin ingin menghapus ${count} jadwal misa terpilih sekaligus?\n\nPerhatian: Seluruh data penugasan misdinar pada jadwal-jadwal tersebut akan ikut terhapus dari sistem.`);
+  if (!conf) {
+    e.preventDefault();
+    return false;
+  }
+  return true;
+}
+
+// Saat mode pilih banyak aktif, klik pada kartu jadwal otomatis mencentang checkbox
+document.addEventListener('click', function(e) {
+  if (!isBulkMode) return;
+  const wrapper = e.target.closest('.schedule-card-wrapper');
+  if (wrapper && !e.target.classList.contains('schedule-checkbox')) {
+    e.preventDefault();
+    const cb = wrapper.querySelector('.schedule-checkbox');
+    if (cb) {
+      cb.checked = !cb.checked;
+      updateBulkDeleteState();
+    }
+  }
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
