@@ -172,7 +172,7 @@ require_once __DIR__ . '/../includes/header.php';
       >
         <?php foreach ($all_schedules as $s): ?>
           <option value="<?= $s['id'] ?>" <?= $selected_id == $s['id'] ? 'selected' : '' ?>>
-            <?= htmlspecialchars($s['judul_misa']) ?> • <?= format_indo_date($s['tanggal_misa']) ?> (<?= substr($s['jam_mulai'], 0, 5) ?> WIB) - [<?= $s['warna_liturgi'] ?>]
+            <?= htmlspecialchars($s['judul_misa']) ?> • <?= format_indo_date($s['tanggal_misa']) ?> (<?= substr($s['jam_mulai'], 0, 5) ?> WIB)
           </option>
         <?php endforeach; ?>
       </select>

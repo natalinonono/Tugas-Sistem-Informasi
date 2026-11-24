@@ -208,13 +208,6 @@ require_once __DIR__ . '/../includes/header.php';
       <div class="flex flex-col gap-2.5 max-h-[750px] overflow-y-auto pr-1">
         <?php foreach ($all_schedules as $s): 
           $isSelected = ($selected_schedule && $selected_schedule['id'] == $s['id']);
-          $warna_badge = match($s['warna_liturgi']) {
-            'Putih' => 'badge-liturgi-putih',
-            'Merah' => 'badge-liturgi-merah',
-            'Ungu' => 'badge-liturgi-ungu',
-            'Merah Muda' => 'badge-liturgi-merah-muda',
-            default => 'badge-liturgi-hijau'
-          };
         ?>
         <a
           href="?schedule_id=<?= $s['id'] ?>"
@@ -223,9 +216,6 @@ require_once __DIR__ . '/../includes/header.php';
           <div class="flex items-center justify-between gap-2 mb-1.5">
             <span class="text-[10px] font-semibold text-secondary uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary-fixed/50">
               <?= $s['kategori'] === 'harian' ? 'Harian' : 'Mingguan' ?>
-            </span>
-            <span class="badge-pill <?= $warna_badge ?> text-[10px]">
-              <?= $s['warna_liturgi'] ?>
             </span>
           </div>
 
@@ -249,23 +239,12 @@ require_once __DIR__ . '/../includes/header.php';
 
     <!-- Right Column: Selected Schedule Details & Roster Deck -->
     <div class="lg:col-span-2 flex flex-col gap-5">
-      <?php if ($selected_schedule): 
-        $warna_badge = match($selected_schedule['warna_liturgi']) {
-          'Putih' => 'badge-liturgi-putih',
-          'Merah' => 'badge-liturgi-merah',
-          'Ungu' => 'badge-liturgi-ungu',
-          'Merah Muda' => 'badge-liturgi-merah-muda',
-          default => 'badge-liturgi-hijau'
-        };
-      ?>
+      <?php if ($selected_schedule): ?>
       <div class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col gap-6">
         <!-- Selected Schedule Banner -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-surface-container-low border border-surface-container">
           <div class="flex flex-col gap-1.5">
             <div class="flex items-center gap-2">
-              <span class="badge-pill <?= $warna_badge ?> text-xs">
-                Liturgi <?= $selected_schedule['warna_liturgi'] ?>
-              </span>
               <span class="text-xs font-semibold text-secondary uppercase tracking-wider">
                 Misa <?= ucfirst($selected_schedule['kategori']) ?>
               </span>
@@ -411,24 +390,12 @@ require_once __DIR__ . '/../includes/header.php';
         <input type="text" name="judul_misa" required placeholder="Contoh: Misa Mingguan Pagi I" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="block font-semibold text-on-surface-variant mb-1">Kategori *</label>
-          <select name="kategori" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs">
-            <option value="mingguan">Mingguan</option>
-            <option value="harian">Harian</option>
-          </select>
-        </div>
-        <div>
-          <label class="block font-semibold text-on-surface-variant mb-1">Warna Liturgi *</label>
-          <select name="warna_liturgi" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs">
-            <option value="Hijau">Hijau</option>
-            <option value="Putih">Putih</option>
-            <option value="Merah">Merah</option>
-            <option value="Ungu">Ungu</option>
-            <option value="Merah Muda">Merah Muda</option>
-          </select>
-        </div>
+      <div>
+        <label class="block font-semibold text-on-surface-variant mb-1">Kategori *</label>
+        <select name="kategori" class="w-full px-3 py-2 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs">
+          <option value="mingguan">Mingguan</option>
+          <option value="harian">Harian</option>
+        </select>
       </div>
 
       <div class="grid grid-cols-2 gap-3">

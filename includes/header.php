@@ -288,6 +288,19 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
         </a>
       <?php endif; ?>
 
+      <!-- Tombol Akses Cepat Notifikasi Mobile -->
+      <button
+        type="button"
+        onclick="openModal('modal-notifications'); toggleMobileMenu();"
+        class="w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-between text-on-surface-variant hover:bg-surface-container"
+      >
+        <div class="flex items-center gap-2.5">
+          <span class="material-symbols-outlined text-lg text-primary">notifications</span>
+          <span>Pusat Notifikasi &amp; Pengingat</span>
+        </div>
+        <span id="nav-unread-count-mobile" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-error text-white hidden">0</span>
+      </button>
+
       <div class="pt-2 border-t border-surface-container flex items-center justify-between px-3">
         <span class="text-xs font-semibold text-on-surface"><?= htmlspecialchars($current_user['nama_lengkap']) ?></span>
         <a href="<?= $base ?>/logout.php" onclick="return confirm('Keluar dari sistem?')" class="text-xs text-error font-bold flex items-center gap-1">

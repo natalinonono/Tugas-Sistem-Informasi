@@ -87,15 +87,18 @@ require_once __DIR__ . '/includes/header.php';
       </p>
     </div>
 
-    <div class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col gap-3">
-      <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-700">
+    <a href="<?= $base ?>/notifikasi.php" class="p-6 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col gap-3 hover:shadow-md hover:border-emerald-500/50 transition-all block group">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-700 group-hover:bg-emerald-500/20 transition-colors">
         <span class="material-symbols-outlined text-2xl">notifications_active</span>
       </div>
-      <h3 class="font-headline font-bold text-base text-emerald-700">Warta Sakristi &amp; Notifikasi</h3>
+      <div class="flex items-center justify-between">
+        <h3 class="font-headline font-bold text-base text-emerald-700">Warta Sakristi &amp; Notifikasi</h3>
+        <span class="text-xs font-bold text-emerald-700 group-hover:translate-x-1 transition-transform">&rarr;</span>
+      </div>
       <p class="text-xs text-on-surface-variant leading-relaxed">
         Pengingat otomatis H-1 jadwal pelayanan serta warta pengumuman gladi bersih dan tata tertib sakristi terpusat.
       </p>
-    </div>
+    </a>
   </section>
 </div>
 

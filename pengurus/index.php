@@ -280,21 +280,11 @@ require_once __DIR__ . '/../includes/header.php';
       <?php else: ?>
         <div class="flex flex-col gap-3">
           <?php foreach ($upcomingSchedules as $s): 
-            $warna_cls = match($s['warna_liturgi']) {
-              'Putih' => 'badge-liturgi-putih',
-              'Merah' => 'badge-liturgi-merah',
-              'Ungu' => 'badge-liturgi-ungu',
-              'Merah Muda' => 'badge-liturgi-merah-muda',
-              default => 'badge-liturgi-hijau'
-            };
             $persen = round(($s['terisi'] / max(1, $s['kuota_maksimal'])) * 100);
           ?>
           <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container flex items-center justify-between gap-3 hover:bg-surface-container transition-colors">
             <div class="flex flex-col gap-1">
               <div class="flex items-center gap-2">
-                <span class="badge-pill <?= $warna_cls ?> text-[10px]">
-                  <?= $s['warna_liturgi'] ?>
-                </span>
                 <span class="text-xs font-bold text-on-surface font-headline"><?= htmlspecialchars($s['judul_misa']) ?></span>
               </div>
               <div class="text-[11px] text-on-surface-variant flex items-center gap-2">

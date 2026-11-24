@@ -188,9 +188,8 @@ require_once __DIR__ . '/../includes/header.php';
                   <?= htmlspecialchars($h['judul_misa']) ?>
                 </div>
                 <div class="flex items-center gap-1.5 mt-0.5">
-                  <span class="inline-block w-2 h-2 rounded-full <?= get_liturgy_bg_class($h['warna_liturgi'] ?? 'Hijau') ?>"></span>
                   <span class="text-[11px] text-on-surface-variant">
-                    <?= htmlspecialchars($h['warna_liturgi'] ?? 'Hijau') ?> &bull; <?= htmlspecialchars($h['kategori']) ?>
+                    Misa <?= ucfirst(htmlspecialchars($h['kategori'])) ?>
                   </span>
                 </div>
               </td>

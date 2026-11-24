@@ -298,7 +298,7 @@ $roster = $bStmt->fetchAll();
     <strong>Ketentuan Petugas Altar:</strong>
     <ol style="margin: 4px 0 0 16px; padding: 0;">
       <li>Petugas wajib hadir di sakristi paling lambat 30 menit sebelum perayaan dimulai dalam kondisi rapi, bersih, dan bersepatu hitam pantofel/tertutup.</li>
-      <li>Mengenakan jubah dan singel yang sesuai dengan ukuran serta warna liturgi hari bersangkutan.</li>
+      <li>Mengenakan jubah dan singel yang sesuai dengan ukuran, bersih, dan rapi.</li>
       <li>Bagi petugas yang berhalangan hadir wajib melapor ke Pengurus Sakristi paling lambat H-1 untuk pencarian petugas pengganti.</li>
     </ol>
   </div>

@@ -203,13 +203,6 @@ require_once __DIR__ . '/../includes/header.php';
 
   <!-- 2. Upcoming Active Duty Card (Jika User Memiliki Jadwal Tugas Aktif) -->
   <?php if ($active_duty): 
-    $duty_warna_badge = match($active_duty['warna_liturgi']) {
-      'Putih' => 'badge-liturgi-putih',
-      'Merah' => 'badge-liturgi-merah',
-      'Ungu' => 'badge-liturgi-ungu',
-      'Merah Muda' => 'badge-liturgi-merah-muda',
-      default => 'badge-liturgi-hijau'
-    };
     $st_duty = $active_duty['status_kehadiran'];
     $is_expired_duty = is_mass_tolerance_expired($active_duty['tanggal_misa'], $active_duty['jam_mulai'], $active_duty['kategori'] ?? 'mingguan');
     if ($st_duty === 'terdaftar' && $is_expired_duty) {
@@ -237,9 +230,6 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div class="flex flex-col gap-1.5">
         <div class="flex items-center gap-2">
-          <span class="badge-pill <?= $duty_warna_badge ?> text-[10px]">
-            <?= $active_duty['warna_liturgi'] ?>
-          </span>
           <span class="text-xs font-semibold text-secondary uppercase tracking-wider">
             Misa <?= ucfirst($active_duty['kategori']) ?>
           </span>
@@ -355,13 +345,6 @@ require_once __DIR__ . '/../includes/header.php';
     <?php else: ?>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         <?php foreach ($available_schedules as $s): 
-          $s_warna = match($s['warna_liturgi']) {
-            'Putih' => 'badge-liturgi-putih',
-            'Merah' => 'badge-liturgi-merah',
-            'Ungu' => 'badge-liturgi-ungu',
-            'Merah Muda' => 'badge-liturgi-merah-muda',
-            default => 'badge-liturgi-hijau'
-          };
           $terisi = (int)$s['terisi'];
           $kuota = (int)$s['kuota_maksimal'];
           $persen = round(($terisi / max(1, $kuota)) * 100);
@@ -373,9 +356,6 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="flex items-center justify-between gap-2">
               <span class="text-[10px] font-semibold text-secondary uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary-fixed/50">
                 <?= $s['kategori'] === 'harian' ? 'Harian' : 'Mingguan' ?>
-              </span>
-              <span class="badge-pill <?= $s_warna ?> text-[10px]">
-                <?= $s['warna_liturgi'] ?>
               </span>
             </div>
 

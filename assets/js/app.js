@@ -119,12 +119,20 @@ function getApiUrl(endpoint) {
 // 4. Modal Helpers
 function openModal(id) {
   const modal = document.getElementById(id);
-  if (modal) modal.classList.add('active');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    modal.classList.add('active');
+  }
 }
 
 function closeModal(id) {
   const modal = document.getElementById(id);
-  if (modal) modal.classList.remove('active');
+  if (modal) {
+    modal.classList.remove('flex');
+    modal.classList.remove('active');
+    modal.classList.add('hidden');
+  }
 }
 
 // 5. Realtime Notification Poller
@@ -138,6 +146,7 @@ function checkNotifications() {
       if (data && data.success) {
         // Update badge count
         const badge = document.getElementById('nav-unread-count');
+        const badgeMobile = document.getElementById('nav-unread-count-mobile');
         if (badge) {
           if (data.unread_count > 0) {
             badge.innerText = data.unread_count;
@@ -146,41 +155,49 @@ function checkNotifications() {
             badge.style.display = 'none';
           }
         }
+        if (badgeMobile) {
+          if (data.unread_count > 0) {
+            badgeMobile.innerText = data.unread_count;
+            badgeMobile.style.display = 'inline-block';
+          } else {
+            badgeMobile.style.display = 'none';
+          }
+        }
 
         // Render isi daftar notifikasi ke dalam modal
         const modalList = document.getElementById('notification-modal-list');
         if (modalList) {
           let html = '';
           if (data.reminders && data.reminders.length > 0) {
-            html += '<div style="margin-bottom:1rem;"><div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.5rem;">Pengingat Tugas Liturgi</div>';
+            html += '<div class="flex flex-col gap-2 mb-3"><div class="text-[11px] font-bold text-secondary uppercase tracking-wider">Pengingat Jadwal Tugas</div>';
             data.reminders.forEach(r => {
               html += `
-                <div style="background:var(--surface-low); border-left:3px solid var(--primary); padding:0.75rem; border-radius:var(--radius-sm); margin-bottom:0.5rem;">
-                  <div style="font-weight:700; font-size:0.85rem; color:var(--text-main);">${r.title}</div>
-                  <div style="font-size:0.78rem; color:var(--text-muted); margin:0.25rem 0;">${r.message}</div>
-                  ${r.url ? `<a href="${r.url}" class="btn btn-secondary btn-sm" style="font-size:0.72rem; padding:2px 8px; margin-top:0.25rem;">Buka Detail</a>` : ''}
+                <div class="p-3.5 rounded-2xl bg-surface-container-low border-l-4 border-primary border border-surface-container flex flex-col gap-1.5">
+                  <div class="font-bold font-headline text-xs text-primary">${r.title}</div>
+                  <div class="text-[11px] text-on-surface-variant leading-relaxed">${r.message}</div>
+                  ${r.url ? `<div class="pt-1"><a href="${r.url}" class="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-surface-container-high hover:bg-surface-container-highest text-primary font-bold text-[10px] transition-colors">Lihat Jadwal &rarr;</a></div>` : ''}
                 </div>
               `;
             });
             html += '</div>';
           }
           if (data.announcements && data.announcements.length > 0) {
-            html += '<div><div style="font-size:0.75rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; margin-bottom:0.5rem;">Warta Sakristi Terkini</div>';
+            html += '<div class="flex flex-col gap-2"><div class="text-[11px] font-bold text-secondary uppercase tracking-wider">Warta & Pengumuman Sakristi</div>';
             data.announcements.forEach(a => {
               html += `
-                <div style="background:var(--surface-low); border-left:3px solid var(--secondary); padding:0.75rem; border-radius:var(--radius-sm); margin-bottom:0.5rem;">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:700; font-size:0.85rem; color:var(--text-main);">${a.is_pinned ? '📌 ' : ''}${a.judul}</div>
-                    <span style="font-size:0.7rem; color:var(--text-dim);">${a.created_at ? a.created_at.substring(0, 10) : ''}</span>
+                <div class="p-3.5 rounded-2xl bg-surface-container-low border-l-4 border-secondary border border-surface-container flex flex-col gap-1.5">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="font-bold font-headline text-xs text-on-surface">${a.is_pinned ? '📌 ' : ''}${a.judul}</div>
+                    <span class="text-[10px] text-on-surface-variant shrink-0">${a.created_at ? a.created_at.substring(0, 10) : ''}</span>
                   </div>
-                  <div style="font-size:0.78rem; color:var(--text-muted); margin-top:0.25rem; white-space:pre-line;">${a.isi}</div>
+                  <div class="text-[11px] text-on-surface-variant leading-relaxed whitespace-pre-line">${a.isi}</div>
                 </div>
               `;
             });
             html += '</div>';
           }
           if (!html) {
-            html = '<p style="font-size:0.8rem; color:var(--text-muted); text-align:center; padding:1.5rem 0;">Belum ada pengingat atau warta baru saat ini.</p>';
+            html = '<div class="p-8 text-center text-xs text-on-surface-variant flex flex-col items-center gap-2"><span class="material-symbols-outlined text-3xl opacity-50">notifications_off</span><span>Belum ada pengingat atau warta baru saat ini.</span></div>';
           }
           modalList.innerHTML = html;
         }

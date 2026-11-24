@@ -20,7 +20,7 @@ $base = base_url();
 </footer>
 
 <!-- Modal Pusat Notifikasi Identik Next.js NotificationCenter -->
-<div id="modal-notifications" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+<div id="modal-notifications" onclick="if (event.target === this) closeModal('modal-notifications')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
   <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scaleUp">
     <!-- Header Modal -->
     <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
@@ -64,7 +64,11 @@ $base = base_url();
     </div>
 
     <!-- Footer Modal -->
-    <div class="p-4 border-t border-surface-container bg-surface-container-low flex justify-end">
+    <div class="p-4 border-t border-surface-container bg-surface-container-low flex items-center justify-between gap-3">
+      <a href="<?= $base ?>/notifikasi.php" class="px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-on-primary hover:bg-primary-container transition-colors inline-flex items-center gap-1.5 shadow-xs">
+        <span class="material-symbols-outlined text-sm">open_in_new</span>
+        <span>Halaman Notifikasi</span>
+      </a>
       <button type="button" onclick="closeModal('modal-notifications')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-surface-container-high hover:bg-surface-container-highest text-on-surface transition-colors">
         Tutup Jendela
       </button>
@@ -110,12 +114,14 @@ $base = base_url();
     if (el) {
       el.classList.remove('hidden');
       el.classList.add('flex');
+      el.classList.add('active');
     }
   }
   function closeModal(id) {
     const el = document.getElementById(id);
     if (el) {
       el.classList.remove('flex');
+      el.classList.remove('active');
       el.classList.add('hidden');
     }
   }
