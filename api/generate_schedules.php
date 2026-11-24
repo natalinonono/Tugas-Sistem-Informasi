@@ -13,8 +13,8 @@ if (!is_logged_in() || !is_pengurus()) {
 
 try {
     $pdo = get_db();
-    $days = (int)($_POST['days'] ?? 30);
-    if ($days < 1) $days = 30;
+    $days = (int)($_POST['days'] ?? ($_GET['days'] ?? 7));
+    if ($days < 1) $days = 7;
 
     $startDate = new DateTime();
     $insertedCount = 0;
@@ -83,9 +83,9 @@ try {
         // 3. Misa Mingguan Hari Minggu: 06.30, 08.30, 17.00 WIB
         if ($dayOfWeek === 7) {
             $sundaySlots = [
-                ['jam' => '06:30:00', 'judul' => 'Misa Mingguan Pagi I', 'warna' => 'Putih'],
-                ['jam' => '08:30:00', 'judul' => 'Misa Mingguan Pagi II', 'warna' => 'Hijau'],
-                ['jam' => '17:00:00', 'judul' => 'Misa Mingguan Sore', 'warna' => 'Hijau'],
+                ['jam' => '06:30:00', 'judul' => 'Misa Mingguan Pagi I'],
+                ['jam' => '08:30:00', 'judul' => 'Misa Mingguan Pagi II'],
+                ['jam' => '17:00:00', 'judul' => 'Misa Mingguan Sore'],
             ];
 
             foreach ($sundaySlots as $slot) {
@@ -101,7 +101,7 @@ try {
                         $weekNum,
                         $year,
                         'Tahun B / Liturgi Biasa',
-                        $slot['warna'],
+                        'Hijau',
                         '',
                         $token
                     ]);

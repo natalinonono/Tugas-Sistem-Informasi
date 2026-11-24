@@ -109,6 +109,116 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             exit;
         }
     }
+
+    // 6. Tambah Jadwal Otomatis 1 Minggu ke Depan
+    if ($action === 'generate_auto_schedules') {
+        $startDateStr = $_POST['start_date'] ?? date('Y-m-d');
+        $days = 7; // 1 minggu ke depan
+
+        try {
+            $startDate = new DateTime($startDateStr);
+        } catch (Exception $e) {
+            $startDate = new DateTime();
+        }
+
+        $checkStmt = $pdo->prepare("SELECT id FROM mass_schedules WHERE tanggal_misa = ? AND jam_mulai = ?");
+        $insertStmt = $pdo->prepare("
+            INSERT INTO mass_schedules 
+            (judul_misa, kategori, tanggal_misa, jam_mulai, kuota_maksimal, minggu_ke, tahun, tahun_liturgi, warna_liturgi, nama_selebran, qr_token)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Hijau', '', ?)
+        ");
+
+        $insertedCount = 0;
+        $endDateStr = '';
+
+        for ($i = 0; $i < $days; $i++) {
+            $current = clone $startDate;
+            $current->modify("+$i days");
+            $dateStr = $current->format('Y-m-d');
+            $dayOfWeek = (int)$current->format('N'); // 1 (Senin) .. 7 (Minggu)
+            $weekNum = (int)$current->format('W');
+            $year = (int)$current->format('Y');
+            $endDateStr = $dateStr;
+
+            // 1. Misa Harian: Senin s/d Sabtu (05.30 WIB)
+            if ($dayOfWeek >= 1 && $dayOfWeek <= 6) {
+                $time = '05:30:00';
+                $checkStmt->execute([$dateStr, $time]);
+                if (!$checkStmt->fetch()) {
+                    $token = md5("misa-harian-$dateStr-$time-" . uniqid('', true));
+                    $insertStmt->execute([
+                        'Misa Harian Pagi',
+                        'harian',
+                        $dateStr,
+                        $time,
+                        6,
+                        $weekNum,
+                        $year,
+                        'Tahun B / Liturgi Biasa',
+                        $token
+                    ]);
+                    $insertedCount++;
+                }
+            }
+
+            // 2. Misa Mingguan Sabtu Sore (17.00 WIB)
+            if ($dayOfWeek === 6) {
+                $time = '17:00:00';
+                $checkStmt->execute([$dateStr, $time]);
+                if (!$checkStmt->fetch()) {
+                    $token = md5("misa-sabtu-$dateStr-$time-" . uniqid('', true));
+                    $insertStmt->execute([
+                        'Misa Mingguan Sabtu Sore',
+                        'mingguan',
+                        $dateStr,
+                        $time,
+                        12,
+                        $weekNum,
+                        $year,
+                        'Tahun B / Liturgi Biasa',
+                        $token
+                    ]);
+                    $insertedCount++;
+                }
+            }
+
+            // 3. Misa Mingguan Hari Minggu: 06.30, 08.30, 17.00 WIB
+            if ($dayOfWeek === 7) {
+                $sundaySlots = [
+                    ['jam' => '06:30:00', 'judul' => 'Misa Mingguan Pagi I'],
+                    ['jam' => '08:30:00', 'judul' => 'Misa Mingguan Pagi II'],
+                    ['jam' => '17:00:00', 'judul' => 'Misa Mingguan Sore'],
+                ];
+
+                foreach ($sundaySlots as $slot) {
+                    $checkStmt->execute([$dateStr, $slot['jam']]);
+                    if (!$checkStmt->fetch()) {
+                        $token = md5("misa-minggu-$dateStr-{$slot['jam']}-" . uniqid('', true));
+                        $insertStmt->execute([
+                            $slot['judul'],
+                            'mingguan',
+                            $dateStr,
+                            $slot['jam'],
+                            12,
+                            $weekNum,
+                            $year,
+                            'Tahun B / Liturgi Biasa',
+                            $token
+                        ]);
+                        $insertedCount++;
+                    }
+                }
+            }
+        }
+
+        if ($insertedCount > 0) {
+            set_flash('success', "Berhasil menambahkan {$insertedCount} jadwal misa otomatis selama 1 minggu ke depan (" . date('d M Y', strtotime($startDateStr)) . " s/d " . date('d M Y', strtotime($endDateStr)) . ")!");
+        } else {
+            set_flash('info', "Seluruh jadwal misa untuk 1 minggu ke depan sudah terdaftar di sistem. Tidak ada jadwal duplikat yang ditambahkan.");
+        }
+        header('Location: jadwal.php');
+        exit;
+    }
 }
 
 // Ambil semua jadwal
@@ -185,14 +295,26 @@ require_once __DIR__ . '/../includes/header.php';
       </p>
     </div>
 
-    <button
-      type="button"
-      onclick="openModal('modal-add-schedule')"
-      class="px-4 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-primary-container text-xs font-headline font-bold transition-all shadow-xs flex items-center gap-2 self-start sm:self-auto"
-    >
-      <span class="material-symbols-outlined text-base">add</span>
-      <span>Tambah Jadwal Baru</span>
-    </button>
+    <div class="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+      <button
+        type="button"
+        onclick="openModal('modal-auto-schedule')"
+        class="px-4 py-2.5 rounded-xl bg-secondary text-on-secondary hover:bg-secondary-container text-xs font-headline font-bold transition-all shadow-xs flex items-center gap-2"
+        title="Buat jadwal otomatis untuk 1 minggu ke depan"
+      >
+        <span class="material-symbols-outlined text-base">auto_mode</span>
+        <span>Jadwal Otomatis (1 Minggu)</span>
+      </button>
+
+      <button
+        type="button"
+        onclick="openModal('modal-add-schedule')"
+        class="px-4 py-2.5 rounded-xl bg-primary text-on-primary hover:bg-primary-container text-xs font-headline font-bold transition-all shadow-xs flex items-center gap-2"
+      >
+        <span class="material-symbols-outlined text-base">add</span>
+        <span>Tambah Jadwal Manual</span>
+      </button>
+    </div>
   </div>
 
   <!-- 2-Column Main Layout: Left Schedule Selector & Right Duty Allocation Deck -->
@@ -456,6 +578,67 @@ require_once __DIR__ . '/../includes/header.php';
       <div class="p-3 border-t border-surface-container mt-2 flex justify-end gap-2">
         <button type="button" onclick="closeModal('modal-assign-member')" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface font-semibold">Batal</button>
         <button type="submit" class="px-4 py-2 rounded-xl bg-primary text-on-primary font-bold hover:bg-primary-container transition-colors">Tugaskan Sekarang</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Jadwal Otomatis 1 Minggu -->
+<div id="modal-auto-schedule" onclick="if (event.target === this) closeModal('modal-auto-schedule')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+  <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
+    <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-secondary-fixed/50 text-secondary flex items-center justify-center">
+          <span class="material-symbols-outlined text-xl">auto_mode</span>
+        </div>
+        <div>
+          <h3 class="font-headline font-bold text-base text-primary">Jadwal Otomatis 1 Minggu</h3>
+          <p class="text-[11px] text-on-surface-variant">Generate kalender misa selama 7 hari ke depan</p>
+        </div>
+      </div>
+      <button type="button" onclick="closeModal('modal-auto-schedule')" class="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+        <span class="material-symbols-outlined text-lg">close</span>
+      </button>
+    </div>
+
+    <form method="POST" action="" class="p-5 flex flex-col gap-4">
+      <input type="hidden" name="action" value="generate_auto_schedules">
+
+      <div class="p-3.5 rounded-2xl bg-surface-container-low border border-surface-container flex flex-col gap-2 text-xs">
+        <div class="font-bold text-secondary flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-base">calendar_view_week</span>
+          <span>Roster Liturgi Standar yang Dibuat:</span>
+        </div>
+        <ul class="list-disc list-inside space-y-1 text-on-surface-variant text-[11px] leading-relaxed">
+          <li><strong>Senin – Sabtu:</strong> Misa Harian Pagi (05.30 WIB • 6 Kuota)</li>
+          <li><strong>Sabtu Sore:</strong> Misa Mingguan (17.00 WIB • 12 Kuota)</li>
+          <li><strong>Minggu:</strong> Pagi I (06.30), Pagi II (08.30), Sore (17.00)</li>
+        </ul>
+        <div class="text-[10px] text-outline mt-1 italic">
+          * Sistem otomatis memeriksa dan tidak akan menduplikat jadwal yang sudah ada.
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-semibold text-xs text-on-surface-variant mb-1">Mulai Dari Tanggal *</label>
+        <input
+          type="date"
+          name="start_date"
+          required
+          value="<?= date('Y-m-d') ?>"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-outline-variant bg-surface-container-lowest text-on-surface text-xs focus:outline-none focus:ring-2 focus:ring-secondary/20"
+        >
+        <span class="text-[10px] text-on-surface-variant mt-1 block">Jadwal akan dihitung selama 7 hari ke depan dari tanggal ini.</span>
+      </div>
+
+      <div class="pt-3 border-t border-surface-container flex items-center justify-end gap-2">
+        <button type="button" onclick="closeModal('modal-auto-schedule')" class="px-4 py-2 rounded-xl bg-surface-container-high text-on-surface font-semibold text-xs">
+          Batal
+        </button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-secondary text-on-secondary font-headline font-bold text-xs hover:bg-secondary-container transition-colors shadow-xs flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-sm">bolt</span>
+          <span>Generate 1 Minggu Sekarang</span>
+        </button>
       </div>
     </form>
   </div>
