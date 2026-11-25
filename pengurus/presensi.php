@@ -146,7 +146,7 @@ require_once __DIR__ . '/../includes/header.php';
       </p>
     </div>
 
-    <div class="flex items-center gap-2 self-start sm:self-auto">
+    <div class="flex items-center gap-2 self-start sm:self-auto no-print">
       <button
         type="button"
         onclick="window.print()"
@@ -159,7 +159,7 @@ require_once __DIR__ . '/../includes/header.php';
   </div>
 
   <!-- Dropdown Selector Jadwal Misa -->
-  <div class="p-4 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  <div class="p-4 rounded-3xl bg-surface-container-lowest border border-surface-container shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
     <div class="flex items-center gap-2 text-xs font-semibold text-on-surface">
       <span class="material-symbols-outlined text-primary text-lg">event_available</span>
       <span>Pilih Jadwal Misa:</span>
@@ -219,12 +219,18 @@ require_once __DIR__ . '/../includes/header.php';
         Letakkan layar ini di meja sakristi atau cetak untuk dipindai oleh misdinar bertugas.
       </p>
 
-      <div class="p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md">
-        <img
-          src="<?= $qr_api_url ?>"
-          alt="QR Code Presensi Sakristi"
-          class="w-48 h-48 object-contain"
-        />
+      <div class="qr-box p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md">
+        <?php if ($selected_schedule): ?>
+          <img
+            src="<?= $qr_api_url ?>"
+            alt="QR Code Presensi Sakristi"
+            class="w-48 h-48 object-contain"
+          />
+        <?php else: ?>
+          <div class="w-48 h-48 flex items-center justify-center text-xs text-on-surface-variant">
+            Belum ada jadwal misa.
+          </div>
+        <?php endif; ?>
       </div>
 
       <div class="flex flex-col gap-1 w-full pt-1">

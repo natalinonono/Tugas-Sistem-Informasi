@@ -19,8 +19,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $judul = trim($_POST['judul_misa'] ?? '');
         $kategori = $_POST['kategori'] ?? 'mingguan';
         $tanggal = $_POST['tanggal_misa'] ?? '';
-        $jam = $_POST['jam_mulai'] ?? '';
-        $kuota = (int)($_POST['kuota_maksimal'] ?? 12);
+        $jam = trim($_POST['jam_mulai'] ?? '');
+        if (strlen($jam) === 5) {
+            $jam .= ':00';
+        }
+        $kuota = max(1, (int)($_POST['kuota_maksimal'] ?? 12));
         $warna = $_POST['warna_liturgi'] ?? 'Hijau';
         $tahun_liturgi = trim($_POST['tahun_liturgi'] ?? 'Tahun B / Liturgi Biasa');
 
@@ -102,12 +105,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 $sInfo->execute([$schedule_id]);
                 $sch = $sInfo->fetch();
 
-                $ins = $pdo->prepare("
-                    INSERT INTO bookings (schedule_id, user_id, kategori_misa, minggu_ke, tahun, posisi_tugas, status_kehadiran)
-                    VALUES (?, ?, ?, ?, ?, ?, 'terdaftar')
-                ");
-                $ins->execute([$schedule_id, $user_id, $sch['kategori'], $sch['minggu_ke'], $sch['tahun'], $posisi]);
-                set_flash('success', 'Petugas misdinar berhasil ditambahkan ke jadwal!');
+                if ($sch) {
+                    $ins = $pdo->prepare("
+                        INSERT INTO bookings (schedule_id, user_id, kategori_misa, minggu_ke, tahun, posisi_tugas, status_kehadiran)
+                        VALUES (?, ?, ?, ?, ?, ?, 'terdaftar')
+                    ");
+                    $ins->execute([$schedule_id, $user_id, $sch['kategori'], $sch['minggu_ke'], $sch['tahun'], $posisi]);
+                    set_flash('success', 'Petugas misdinar berhasil ditambahkan ke jadwal!');
+                } else {
+                    set_flash('error', 'Jadwal misa tidak ditemukan.');
+                }
             }
             header("Location: jadwal.php?schedule_id={$schedule_id}");
             exit;
@@ -474,7 +481,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
           </div>
 
-          <div class="flex items-center gap-2 self-start sm:self-auto">
+          <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <button
               type="button"
               onclick="openModal('modal-assign-member')"
@@ -483,6 +490,26 @@ require_once __DIR__ . '/../includes/header.php';
               <span class="material-symbols-outlined text-sm">person_add</span>
               <span>Tambah Petugas</span>
             </button>
+            <?php if (!empty($roster)): ?>
+            <button
+              type="button"
+              onclick="broadcastReminder(<?= (int)$selected_schedule['id'] ?>)"
+              class="px-3 py-2 rounded-xl bg-secondary text-on-secondary hover:bg-secondary-container text-xs font-bold transition-colors flex items-center gap-1.5"
+              title="Siarkan Pengingat Lonceng Web ke Seluruh Petugas Jadwal Ini"
+            >
+              <span class="material-symbols-outlined text-sm">notifications_active</span>
+              <span class="hidden sm:inline">Ingatkan Semua</span>
+            </button>
+            <?php endif; ?>
+            <a
+              href="cetak_jadwal.php?id=<?= $selected_schedule['id'] ?>"
+              target="_blank"
+              class="px-3 py-2 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest text-xs font-semibold transition-colors flex items-center gap-1.5"
+              title="Cetak Lembar Tugas Resmi (A4)"
+            >
+              <span class="material-symbols-outlined text-sm text-primary">print</span>
+              <span class="hidden sm:inline">Cetak</span>
+            </a>
             <form method="POST" action="" onsubmit="return confirm('Hapus jadwal misa ini beserta seluruh pendaftaran di dalamnya?')">
               <input type="hidden" name="action" value="delete_schedule">
               <input type="hidden" name="schedule_id" value="<?= $selected_schedule['id'] ?>">
@@ -547,8 +574,9 @@ require_once __DIR__ . '/../includes/header.php';
                     </td>
                     <td class="py-3 px-3 text-right">
                       <div class="inline-flex items-center gap-1.5">
+                        <?php $waData = generate_whatsapp_reminder_link(array_merge($selected_schedule, ['posisi_tugas' => $r['posisi_tugas'] ?? 'Petugas Altar']), $r); ?>
                         <a
-                          href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $r['no_telepon']) ?>?text=<?= rawurlencode("Halo {$r['nama_panggilan']}, pengurus sakristi mengingatkan tugas altar di {$selected_schedule['judul_misa']} pada " . format_indo_date($selected_schedule['tanggal_misa']) . " pukul " . substr($selected_schedule['jam_mulai'], 0, 5) . " WIB. Harap hadir H-30 menit!") ?>"
+                          href="<?= htmlspecialchars($waData['url']) ?>"
                           target="_blank"
                           class="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors"
                           title="Kirim Pengingat WhatsApp"
@@ -583,7 +611,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- Modal Tambah Jadwal Misa Baru -->
-<div id="modal-add-schedule" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+<div id="modal-add-schedule" onclick="if (event.target === this) closeModal('modal-add-schedule')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
   <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
     <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
       <div class="flex items-center gap-2">
@@ -636,7 +664,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- Modal Tambah Petugas Manual -->
-<div id="modal-assign-member" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+<div id="modal-assign-member" onclick="if (event.target === this) closeModal('modal-assign-member')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
   <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
     <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
       <div class="flex items-center gap-2">
@@ -836,6 +864,27 @@ document.addEventListener('click', function(e) {
     }
   }
 });
+
+function broadcastReminder(scheduleId) {
+  if (!confirm('Siarkan notifikasi pengingat tugas altar ke seluruh misdinar yang terdaftar pada jadwal ini?')) return;
+  const formData = new FormData();
+  formData.append('schedule_id', scheduleId);
+
+  fetch('<?= $base ?>/api/reminder.php', {
+    method: 'POST',
+    body: formData
+  })
+    .then(res => res.json())
+    .then(data => {
+      alert(data.message || data.error || 'Proses selesai.');
+      if (data.success && typeof checkNotifications === 'function') {
+        checkNotifications();
+      }
+    })
+    .catch(() => {
+      alert('Gagal menyiarkan pengingat.');
+    });
+}
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

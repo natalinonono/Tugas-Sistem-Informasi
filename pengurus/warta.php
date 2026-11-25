@@ -184,7 +184,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- Modal Terbitkan Warta Baru -->
-<div id="modal-add-warta" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+<div id="modal-add-warta" onclick="if (event.target === this) closeModal('modal-add-warta')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
   <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden animate-scaleUp">
     <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
       <div class="flex items-center gap-2">

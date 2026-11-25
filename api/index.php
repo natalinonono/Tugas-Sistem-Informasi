@@ -17,6 +17,11 @@ if ($uri === '/' || $uri === '' || $uri === '/index.php') {
 } else {
     $file = $rootDir . $uri;
     if (is_dir($file)) {
+        if (!str_ends_with($uri, '/')) {
+            $qs = !empty($_SERVER['QUERY_STRING']) ? ('?' . $_SERVER['QUERY_STRING']) : '';
+            header('Location: ' . $uri . '/' . $qs, true, 301);
+            exit;
+        }
         $file = rtrim($file, '/') . '/index.php';
     } elseif (!str_ends_with($file, '.php')) {
         if (file_exists($file . '.php')) {

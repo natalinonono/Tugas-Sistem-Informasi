@@ -210,7 +210,7 @@ require_once __DIR__ . '/../includes/header.php';
             </label>
             <div class="relative">
               <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant text-base">school</span>
-              <select name="jenjang" required class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-container focus:border-primary focus:ring-1 focus:ring-primary text-xs text-on-surface bg-white">
+              <select name="jenjang" required class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-surface-container focus:border-primary focus:ring-1 focus:ring-primary text-xs text-on-surface bg-surface-container-lowest">
                 <?php foreach (JENJANG_OPTIONS as $j): ?>
                   <option value="<?= $j ?>" <?= $profile['jenjang'] === $j ? 'selected' : '' ?>><?= $j ?></option>
                 <?php endforeach; ?>

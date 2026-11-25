@@ -15,7 +15,9 @@ $today = date('Y-m-d');
 // 1. Statistik
 $countAnggota = (int)$pdo->query("SELECT COUNT(*) FROM profiles WHERE role = 'anggota' AND status = 'aktif'")->fetchColumn();
 $countPending = (int)$pdo->query("SELECT COUNT(*) FROM profiles WHERE status = 'pending'")->fetchColumn();
-$countSchedules = (int)$pdo->query("SELECT COUNT(*) FROM mass_schedules WHERE tanggal_misa >= '$today'")->fetchColumn();
+$stmtCountSchedules = $pdo->prepare("SELECT COUNT(*) FROM mass_schedules WHERE tanggal_misa >= ?");
+$stmtCountSchedules->execute([$today]);
+$countSchedules = (int)$stmtCountSchedules->fetchColumn();
 
 // Total Tugas Terdaftar Pekan Ini
 $current_week = (int)date('W');
@@ -242,8 +244,8 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
 
         <form method="POST" action="anggota.php">
-          <input type="hidden" name="action" value="approve_member">
-          <input type="hidden" name="member_id" value="<?= $m['id'] ?>">
+          <input type="hidden" name="action" value="approve">
+          <input type="hidden" name="user_id" value="<?= $m['id'] ?>">
           <button
             type="submit"
             class="w-full py-2 px-3 rounded-xl bg-primary text-on-primary text-xs font-bold hover:bg-primary-container transition-colors flex items-center justify-center gap-1.5"
@@ -366,8 +368,14 @@ require_once __DIR__ . '/../includes/header.php';
 <script>
   function triggerAutoGenerate() {
     if (!confirm('Generate jadwal misa otomatis untuk 30 hari ke depan (Misa Harian 05.30 WIB & Misa Mingguan)?')) return;
-    
-    fetch('<?= $base ?>/api/generate_schedules.php', { method: 'POST' })
+
+    const formData = new FormData();
+    formData.append('days', '30');
+
+    fetch('<?= $base ?>/api/generate_schedules.php', {
+      method: 'POST',
+      body: formData
+    })
       .then(res => res.json())
       .then(data => {
         alert(data.message || (data.success ? 'Jadwal 30 hari berhasil dibuat!' : 'Gagal membuat jadwal.'));

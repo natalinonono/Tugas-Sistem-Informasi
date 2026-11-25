@@ -93,11 +93,16 @@ function get_attendance_badge(string $status): string {
     return '<span class="badge ' . $badge['bg'] . '">' . htmlspecialchars($badge['label']) . '</span>';
 }
 
-function generate_whatsapp_reminder_link(array $schedule, array $member): array {
-    $phone = preg_replace('/[^0-9]/', '', $member['no_telepon'] ?? '');
+function format_wa_phone(string $rawPhone): string {
+    $phone = preg_replace('/[^0-9]/', '', $rawPhone);
     if (str_starts_with($phone, '0')) {
         $phone = '62' . substr($phone, 1);
     }
+    return $phone;
+}
+
+function generate_whatsapp_reminder_link(array $schedule, array $member): array {
+    $phone = format_wa_phone($member['no_telepon'] ?? '');
 
     $nama = (!empty($member['nama_panggilan'])) ? $member['nama_panggilan'] : (!empty($member['nama_lengkap']) ? $member['nama_lengkap'] : 'Misdinar');
     $tanggal = format_indo_date($schedule['tanggal_misa'] ?? '');

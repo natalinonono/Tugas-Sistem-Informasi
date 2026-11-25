@@ -88,13 +88,13 @@ $today = date('Y-m-d');
 $current_week = (int)date('W');
 $current_year = (int)date('Y');
 
-// 1. Ambil Penugasan Aktif Terdekat untuk User Ini
+// 1. Ambil Penugasan Aktif Terdekat untuk User Ini (prioritaskan yang berstatus 'terdaftar')
 $active_duty_stmt = $pdo->prepare("
     SELECT b.*, s.judul_misa, s.kategori, s.tanggal_misa, s.jam_mulai, s.warna_liturgi, s.qr_token
     FROM bookings b
     JOIN mass_schedules s ON b.schedule_id = s.id
     WHERE b.user_id = ? AND s.tanggal_misa >= ?
-    ORDER BY s.tanggal_misa ASC, s.jam_mulai ASC
+    ORDER BY CASE WHEN b.status_kehadiran = 'terdaftar' THEN 0 ELSE 1 END ASC, s.tanggal_misa ASC, s.jam_mulai ASC
     LIMIT 1
 ");
 $active_duty_stmt->execute([$user['id'], $today]);
@@ -248,7 +248,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php if ($st_duty === 'terdaftar' && !$is_expired_duty): ?>
           <button
             type="button"
-            onclick="openCheckinModal(<?= $active_duty['id'] ?>, '<?= htmlspecialchars($active_duty['judul_misa']) ?>', '<?= $active_duty['tanggal_misa'] ?>', '<?= substr($active_duty['jam_mulai'], 0, 5) ?>')"
+            onclick="openCheckinModal(<?= (int)$active_duty['id'] ?>, '<?= htmlspecialchars($active_duty['judul_misa'], ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars($active_duty['tanggal_misa'], ENT_QUOTES, 'UTF-8') ?>', '<?= substr($active_duty['jam_mulai'], 0, 5) ?>')"
             class="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-headline font-bold hover:bg-primary-container transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <span class="material-symbols-outlined text-sm">how_to_reg</span>
@@ -391,10 +391,36 @@ require_once __DIR__ . '/../includes/header.php';
           <!-- Action Button -->
           <div class="pt-2 border-t border-surface-container">
             <?php if ($my_status): ?>
-              <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center flex items-center justify-center gap-1">
-                <span class="material-symbols-outlined text-sm">check_circle</span>
-                <span>Anda Terdaftar (<?= strtoupper($my_status) ?>)</span>
-              </div>
+              <?php if ($my_status === 'terdaftar' && !is_mass_tolerance_expired($s['tanggal_misa'], $s['jam_mulai'], $s['kategori'] ?? 'mingguan')): ?>
+                <div class="flex flex-col gap-2">
+                  <div class="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold text-center flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">check_circle</span>
+                    <span>Anda Terdaftar (TERDAFTAR)</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onclick="openCheckinModal(<?= (int)$s['my_booking_id'] ?>, '<?= htmlspecialchars($s['judul_misa'], ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars($s['tanggal_misa'], ENT_QUOTES, 'UTF-8') ?>', '<?= substr($s['jam_mulai'], 0, 5) ?>')"
+                      class="flex-1 py-2 px-3 rounded-xl bg-primary text-on-primary hover:bg-primary-container text-[11px] font-bold transition-colors flex items-center justify-center gap-1"
+                    >
+                      <span class="material-symbols-outlined text-sm">how_to_reg</span>
+                      <span>Presensi</span>
+                    </button>
+                    <form method="POST" action="" onsubmit="return confirm('Batalkan pendaftaran tugas misa ini?')">
+                      <input type="hidden" name="action" value="cancel_booking">
+                      <input type="hidden" name="booking_id" value="<?= (int)$s['my_booking_id'] ?>">
+                      <button type="submit" class="py-2 px-3 rounded-xl bg-surface-container-high hover:bg-error-container hover:text-error text-[11px] font-semibold transition-colors">
+                        Batal
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              <?php else: ?>
+                <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center flex items-center justify-center gap-1">
+                  <span class="material-symbols-outlined text-sm">check_circle</span>
+                  <span>Anda Terdaftar (<?= strtoupper($my_status) ?>)</span>
+                </div>
+              <?php endif; ?>
             <?php elseif ($is_full): ?>
               <button disabled class="w-full py-2.5 px-3 rounded-xl bg-surface-container text-outline text-xs font-bold cursor-not-allowed text-center">
                 Kuota Penuh
@@ -406,7 +432,7 @@ require_once __DIR__ . '/../includes/header.php';
             <?php else: ?>
               <button
                 type="button"
-                onclick="openBookingModal(<?= $s['id'] ?>, '<?= htmlspecialchars($s['judul_misa']) ?>', '<?= format_indo_date($s['tanggal_misa']) ?>', '<?= substr($s['jam_mulai'], 0, 5) ?>')"
+                onclick="openBookingModal(<?= (int)$s['id'] ?>, '<?= htmlspecialchars($s['judul_misa'], ENT_QUOTES, 'UTF-8') ?>', '<?= htmlspecialchars(format_indo_date($s['tanggal_misa']), ENT_QUOTES, 'UTF-8') ?>', '<?= substr($s['jam_mulai'], 0, 5) ?>')"
                 class="w-full py-2.5 px-3 rounded-xl bg-primary text-on-primary hover:bg-primary-container text-xs font-headline font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
               >
                 <span class="material-symbols-outlined text-sm">edit_calendar</span>
@@ -422,7 +448,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- Modal Booking Mandiri -->
-<div id="modal-book-schedule" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+<div id="modal-book-schedule" onclick="if (event.target === this) closeModal('modal-book-schedule')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
   <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
     <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
       <div class="flex items-center gap-2">
@@ -460,7 +486,7 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <!-- Modal Presensi Sakristi Digital -->
-<div id="modal-checkin" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
+<div id="modal-checkin" onclick="if (event.target === this) closeModal('modal-checkin')" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden items-center justify-center p-4">
   <div class="bg-surface-container-lowest border border-surface-container rounded-3xl max-w-md w-full shadow-2xl overflow-hidden animate-scaleUp">
     <div class="p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low">
       <div class="flex items-center gap-2">
@@ -478,7 +504,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div id="checkin-time" class="text-[11px] text-on-surface-variant">--</div>
       </div>
 
-      <div class="p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md my-1">
+      <div class="qr-box p-4 bg-white rounded-2xl border-2 border-primary-fixed shadow-md my-1">
         <img id="checkin-qr-img" src="" alt="QR Presensi" class="w-40 h-40 object-contain mx-auto">
       </div>
 

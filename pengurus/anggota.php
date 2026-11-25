@@ -16,8 +16,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $action = $_POST['action'] ?? '';
 
     // 1. Setujui Anggota (Pending -> Aktif)
-    if ($action === 'approve') {
-        $user_id = (int)($_POST['user_id'] ?? 0);
+    if ($action === 'approve' || $action === 'approve_member') {
+        $user_id = (int)($_POST['user_id'] ?? ($_POST['member_id'] ?? 0));
         if ($user_id) {
             $stmt = $pdo->prepare("UPDATE profiles SET status = 'aktif' WHERE id = ?");
             $stmt->execute([$user_id]);
@@ -44,6 +44,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     if ($action === 'delete') {
         $user_id = (int)($_POST['user_id'] ?? 0);
         if ($user_id && $user_id !== (int)$current_user['id']) {
+            $delBookings = $pdo->prepare("DELETE FROM bookings WHERE user_id = ?");
+            $delBookings->execute([$user_id]);
             $stmt = $pdo->prepare("DELETE FROM profiles WHERE id = ?");
             $stmt->execute([$user_id]);
             set_flash('success', 'Data anggota berhasil dihapus dari sistem.');
@@ -209,7 +211,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
             <div class="flex items-center gap-2 text-on-surface-variant">
               <span class="material-symbols-outlined text-sm text-emerald-700">chat</span>
-              <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $m['no_telepon']) ?>" target="_blank" class="text-primary hover:underline font-mono">
+              <a href="https://wa.me/<?= format_wa_phone($m['no_telepon']) ?>" target="_blank" class="text-primary hover:underline font-mono">
                 <?= htmlspecialchars($m['no_telepon']) ?>
               </a>
             </div>

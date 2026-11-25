@@ -34,6 +34,8 @@ if ($status_filter === 'hadir') {
     $sql .= " AND b.status_kehadiran = 'izin'";
 } elseif ($status_filter === 'alpa') {
     $sql .= " AND b.status_kehadiran = 'alpa'";
+} elseif ($status_filter === 'terdaftar') {
+    $sql .= " AND b.status_kehadiran = 'terdaftar'";
 }
 
 $sql .= " ORDER BY s.tanggal_misa DESC, s.jam_mulai DESC";
@@ -47,6 +49,7 @@ $total_hadir = 0;
 $total_terlambat = 0;
 $total_izin = 0;
 $total_alpa = 0;
+$total_terdaftar = 0;
 
 $allStatsStmt = $pdo->prepare("SELECT status_kehadiran, COUNT(*) as cnt FROM bookings WHERE user_id = ? GROUP BY status_kehadiran");
 $allStatsStmt->execute([$user['id']]);
@@ -59,6 +62,7 @@ foreach ($statsRaw as $sr) {
     if ($sr['status_kehadiran'] === 'terlambat') $total_terlambat = (int)$sr['cnt'];
     if ($sr['status_kehadiran'] === 'izin') $total_izin = (int)$sr['cnt'];
     if ($sr['status_kehadiran'] === 'alpa') $total_alpa = (int)$sr['cnt'];
+    if ($sr['status_kehadiran'] === 'terdaftar') $total_terdaftar = (int)$sr['cnt'];
 }
 
 $persen_kehadiran = $all_count > 0 ? round((($total_hadir + $total_terlambat) / $all_count) * 100) : 0;
@@ -153,6 +157,9 @@ require_once __DIR__ . '/../includes/header.php';
     </a>
     <a href="riwayat.php?status=alpa" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'alpa' ? 'bg-rose-600 text-white shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
       Alpa (<?= $total_alpa ?>)
+    </a>
+    <a href="riwayat.php?status=terdaftar" class="px-4 py-2 rounded-xl text-xs font-semibold shrink-0 transition-all <?= $status_filter === 'terdaftar' ? 'bg-primary text-on-primary shadow-xs' : 'bg-surface-container-lowest border border-surface-container text-on-surface-variant hover:bg-surface-container' ?>">
+      Terdaftar (<?= $total_terdaftar ?>)
     </a>
   </div>
 

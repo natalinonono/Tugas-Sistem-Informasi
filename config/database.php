@@ -90,10 +90,17 @@ function get_db(): PDO {
         if (!is_dir($dbDir)) {
             mkdir($dbDir, 0777, true);
         }
-        $isNew = !file_exists(SQLITE_FILE);
+        $isNew = !file_exists(SQLITE_FILE) || filesize(SQLITE_FILE) === 0;
         $pdo = new PDO("sqlite:" . SQLITE_FILE, null, null, $options);
+        $pdo->exec("PRAGMA foreign_keys = ON;");
         if ($isNew) {
             init_sqlite_tables($pdo);
+        } else {
+            try {
+                $pdo->query("SELECT 1 FROM profiles LIMIT 1");
+            } catch (Exception $notExist) {
+                init_sqlite_tables($pdo);
+            }
         }
         return $pdo;
     } catch (Exception $sqe) {

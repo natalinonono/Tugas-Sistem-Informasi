@@ -197,7 +197,7 @@ $roster = $bStmt->fetchAll();
     </div>
     <div style="display: flex; gap: 8px;">
       <button onclick="window.print()" class="btn btn-primary">🖨️ Cetak Dokumen</button>
-      <a href="jadwal.php?view_roster=<?= $schedule['id'] ?>" class="btn btn-secondary">Kembali</a>
+      <a href="jadwal.php?schedule_id=<?= $schedule['id'] ?>" class="btn btn-secondary">Kembali</a>
     </div>
   </div>
 
@@ -206,7 +206,7 @@ $roster = $bStmt->fetchAll();
     <img src="../assets/img/logo.png" alt="Logo Misdinar SPMR" class="kop-logo">
     <div class="kop-text">
       <div class="kop-church">PAGUYUBAN PUTRA-PUTRI ALTAR (MISDINAR)</div>
-      <div class="kop-sub">GEREJA KATOLIK SANTA PERAWAN MARIA DIANGKAT KE SURGA</div>
+      <div class="kop-sub">GEREJA KATOLIK SANTA PERAWAN MARIA REGINA</div>
       <div class="kop-meta">
         Paroki Purbowardayan - Surakarta &bull; Jl. Ahmad Yani No. 10 &bull; Telp. (0271) 642211
       </div>
